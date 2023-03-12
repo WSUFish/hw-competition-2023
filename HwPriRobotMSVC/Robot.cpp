@@ -3,6 +3,12 @@
 #include <iostream>
 using namespace std;
 
+Robot::Robot()
+{
+	x = 0;
+	y = 0;
+}
+
 Robot::Robot(double x, double y):x(x), y(y)
 {
 }
@@ -31,9 +37,18 @@ void Robot::setRobot(char * line)
 	y = strtod(temp, &temp);
 }
 
-void Robot::readRobot()
+void Robot::scanRobot()
 {
 	scanf("%d %d %lf %lf %lf %lf %lf %lf %lf %lf", &workbench, &item, &time_co,
 		&coll_co, &ang_vel, &x_vel, &y_vel, &dir, &x, &y);
+}
+
+void Robot::printRobot()
+{
+	std::cerr << "at workbench " << workbench << ", item = " << item <<
+		", time_co = " << time_co << ", coll_co = " << coll_co <<
+		", ang_vel = " << ang_vel << ", x_vel = " << x_vel <<
+		", y_vel = " << y_vel << ", dir = " << dir << ", x = " << x <<
+		", y = " << y << std::endl;
 }
 

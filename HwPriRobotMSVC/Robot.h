@@ -15,8 +15,10 @@ class Robot
 	double ang_vel = 0;
 
 public:
+	Robot();
 	Robot(double x, double y);
 	void setRobot(char *line);
-	void readRobot();
+	void scanRobot();
+	void printRobot();
 };
 
