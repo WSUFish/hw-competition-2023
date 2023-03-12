@@ -1,6 +1,11 @@
 #include "Robot.h"
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <cmath>
+#define MY_PI 3.14159
 using namespace std;
 
 Robot::Robot()
@@ -39,8 +44,12 @@ void Robot::setRobot(char * line)
 
 void Robot::scanRobot()
 {
+	double oxv = x_vel, oyv = y_vel, odir = dir, oav = ang_vel, ox = x, oy = y;
 	scanf("%d %d %lf %lf %lf %lf %lf %lf %lf %lf", &workbench, &item, &time_co,
-		&coll_co, &ang_vel, &x_vel, &y_vel, &dir, &x, &y);
+		&coll_co, &ang_vel, &x_vel, &y_vel, &dir, &x, &y); 
+	cerr << "delta xvel = " << x_vel - oxv << ", yvel = " << y_vel - oyv <<
+		", dir = " << dir - odir << ", ang_vel = " << ang_vel - oav <<
+		", x = " << x - ox << ", y = " << y - oy << endl;
 }
 
 void Robot::printRobot()
@@ -50,5 +59,51 @@ void Robot::printRobot()
 		", ang_vel = " << ang_vel << ", x_vel = " << x_vel <<
 		", y_vel = " << y_vel << ", dir = " << dir << ", x = " << x <<
 		", y = " << y << std::endl;
+}
+
+void Robot::writeDebug(std::fstream &f, int frameID, int id)
+{
+	vector<string> ss = {
+		to_string(frameID), to_string(id), to_string(workbench),
+		to_string(item), to_string(time_co), to_string(coll_co),
+		to_string(ang_vel), to_string(x_vel), to_string(y_vel),
+		to_string(dir), to_string(x) , to_string(y)
+	};
+	string s;
+	for (int i = 0; i < ss.size(); i++) {
+		if (i != 0) {
+			s += ", ";
+		}
+		s += ss[i];
+	}
+	f << s << endl;
+}
+
+void Robot::goTo_greed(double nx, double ny, int & nv, double & nav)
+{
+	double deltax = nx - x;
+	double deltay = ny - y;
+	
+	double expect_ang = atan2(deltay, deltax) - dir;
+	if (expect_ang < -MY_PI) {
+		expect_ang += (MY_PI * 2);
+	}
+	else if (expect_ang > MY_PI) {
+		expect_ang -= (MY_PI * 2);
+	}
+	if (expect_ang > 0) {
+		nav = MY_PI;
+	}
+	else {
+		nav = -MY_PI;
+	}
+	nv = 6;
+}
+
+void Robot::goToTarget(int & nv, double & nav)
+{
+	if (target != nullptr) {
+		goTo_greed(target->x, target->y, nv, nav);
+	}
 }
 

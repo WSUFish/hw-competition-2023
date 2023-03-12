@@ -1,8 +1,8 @@
 #include "Workbench.h"
 #include <iostream>
 
-Workbench::Workbench(int type, double x, double y):
-	type(type), x(x), y(y)
+Workbench::Workbench(int id, int type, double x, double y):
+	id(id), type(type), x(x), y(y)
 {
 }
 

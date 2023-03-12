@@ -3,6 +3,7 @@
 #include "Workbench.h"
 #include <vector>
 #include <iostream>
+#include <string>
 using std::vector;
 class Controller
 {
@@ -11,6 +12,7 @@ class Controller
 	vector<Workbench> workbenchs;
 
 	int curFrame;
+	std::string debugLogFile;
 
 public:
 	Controller();
@@ -25,5 +27,7 @@ public:
 
 	bool readUntilOK();
 	inline void OK() { puts("OK"); fflush(stdout); };
+
+	void debug();
 };
 
