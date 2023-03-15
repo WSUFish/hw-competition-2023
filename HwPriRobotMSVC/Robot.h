@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include "Workbench.h"
+
 class Robot
 {
 public:
@@ -18,6 +19,7 @@ public:
 	double ang_vel = 0;
 
 	Workbench *target = nullptr;
+	Task *task = nullptr;
 
 public:
 	Robot();
@@ -30,5 +32,11 @@ public:
 
 	void goTo_greed(double nx, double ny, int &nv, double &nav);
 	void goToTarget(int &nv, double &nav);
+
+	bool arrive();
+	bool readyForBuy();
+	bool readyForSell();
+
+	int assessTask(Task *t);
 };
 

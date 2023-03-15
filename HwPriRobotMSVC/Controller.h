@@ -10,6 +10,7 @@ class Controller
 	enum{MAP_WIDTH = 100, MAP_HEIGHT = 100};
 	vector<Robot> robots;
 	vector<Workbench> workbenchs;
+	vector<vector<int>> workbenchIds;
 
 	int curFrame;
 	std::string debugLogFile;
@@ -18,6 +19,7 @@ public:
 	Controller();
 	void readMap();
 	bool readFrame();
+	void initTask();
 	
 	void writeFrame();
 	void perform();
@@ -28,6 +30,14 @@ public:
 	bool readUntilOK();
 	inline void OK() { puts("OK"); fflush(stdout); };
 
+	void allocate();
+	bool allocateSell(Robot &r, int items);
+	bool allocateBuy(Robot &r, int items);
 	void debug();
+
+	void allocateTask(Robot &r, Task *task);
+	void assignTask(Robot &r);
+
+	void assignIdle();
 };
 

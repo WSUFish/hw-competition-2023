@@ -47,9 +47,9 @@ void Robot::scanRobot()
 	double oxv = x_vel, oyv = y_vel, odir = dir, oav = ang_vel, ox = x, oy = y;
 	scanf("%d %d %lf %lf %lf %lf %lf %lf %lf %lf", &workbench, &item, &time_co,
 		&coll_co, &ang_vel, &x_vel, &y_vel, &dir, &x, &y); 
-	cerr << "delta xvel = " << x_vel - oxv << ", yvel = " << y_vel - oyv <<
+	/*cerr << "delta xvel = " << x_vel - oxv << ", yvel = " << y_vel - oyv <<
 		", dir = " << dir - odir << ", ang_vel = " << ang_vel - oav <<
-		", x = " << x - ox << ", y = " << y - oy << endl;
+		", x = " << x - ox << ", y = " << y - oy << endl;*/
 }
 
 void Robot::printRobot()
@@ -105,5 +105,44 @@ void Robot::goToTarget(int & nv, double & nav)
 	if (target != nullptr) {
 		goTo_greed(target->x, target->y, nv, nav);
 	}
+}
+
+bool Robot::arrive()
+{
+	return target != nullptr && target->id == workbench;
+}
+
+bool Robot::readyForBuy()
+{
+	if (workbench != -1) {
+		cerr << "can buy ? ";
+		//printRobot();
+		std::cerr << "robot target " << task->buyWb->id << " on " << workbench << endl;
+		//std::cerr << "target pos = " << target->x << ", " << target->y << ", on pos = " << x << ", " << y << endl;
+		task->buyWb->printWorkbench();
+		//task->sellWb->printWorkbench();
+	}
+	return task->buyWb->id == workbench && task->buyWb->pdt_status == 1;
+}
+
+bool Robot::readyForSell()
+{
+	if (workbench != -1) {
+		cerr << "can sell ? ";
+		//printRobot();
+		std::cerr << task->sellWb->readyForSell[item] << endl;
+		std::cerr << "robot target " << task->sellWb->id << " on " << workbench << endl;
+		//std::cerr << "target pos = " << target->x << ", " << target->y << ", on pos = " << x << ", " << y << endl;
+		//task->buyWb->printWorkbench();
+		task->sellWb->printWorkbench();
+	}
+	return item != 0 && task->sellWb->id == workbench && task->sellWb->readyForSell[item];
+}
+
+int Robot::assessTask(Task * t)
+{
+	double dx = x - t->buyWb->x;
+	double dy = y - t->sellWb->y;
+	return (int)(sqrt(dx * dx + dy * dy) + t->distance);
 }
 
