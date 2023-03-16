@@ -8,6 +8,7 @@
 #ifdef MYDEBUG
 #include <time.h>
 #include <Windows.h>
+#include <fstream>
 #endif
 
 using std::cerr;
@@ -113,11 +114,14 @@ void Controller::writeFrame()
 }
 
 void Controller::allocate()
-{
+{	
+	std::fstream fs;
+	fs.open("D:\\past\\F\\C++_file\\HwPriRobotMSVC\\x64\\record.txt", std::ios::app | std::ios::out);
 	for (int ri = 0; ri < 4; ri++) {
 		if (robots[ri].readyForSell()) {
 			printf("sell %d\n", ri);
 			robots[ri].task->sell();
+			robots[ri].finishTask(curFrame, fs);
 			assignTask(robots[ri]);
 		}
 		if (robots[ri].readyForBuy()) {
@@ -126,6 +130,7 @@ void Controller::allocate()
 			robots[ri].target = robots[ri].task->sellWb;
 		}
 	}
+	fs.close();
 }
 
 bool Controller::allocateSell(Robot & r, int items)
@@ -150,6 +155,7 @@ void Controller::perform()
 		writeFrame();
 		OK();
 	}
+	summary();
 }
 
 bool Controller::readUntilOK()
@@ -182,7 +188,7 @@ void Controller::allocateTask(Robot & r, Task * task)
 #ifdef MYDEBUG
 	//Sleep(10000);
 #endif // MYDEBUG
-
+	r.getTask(task, curFrame);
 	r.task = task;
 	task->buyWb->buyDelegated = true;
 	task->sellWb->sellDelegated[task->buyWb->type] = true;
@@ -199,10 +205,10 @@ void Controller::assignTask(Robot & r)
 		for (int wi : workbenchIds[type]) {
 			for (Task* sellt : workbenchs[wi].buyTasks) {
 				int tempp = r.assessTask(sellt) + sellt->remainTime();
-				if (tempp > 10000 && type > 3 && workbenchs[wi].pdt_status == 1) {
+				/*if (tempp > 10000 && type > 3 && workbenchs[wi].pdt_status == 1) {
 					cerr << "why doesn't select this ?" << endl;
-				}
-				cerr << "task " << sellt->buyWb->type << "->" << sellt->sellWb->type << " priority = " << tempp << endl;
+				}*/
+				//cerr << "task " << sellt->buyWb->type << "->" << sellt->sellWb->type << " priority = " << tempp << endl;
 				if (tempp < priority) {
 					priority = tempp;
 					t = sellt;
@@ -225,4 +231,10 @@ void Controller::assignIdle()
 			assignTask(r);
 		}
 	}
+}
+
+void Controller::summary()
+{
+	cerr << "robot cost total " << Robot::total_frame << " ms go " << Robot::total_distance << " m, ";
+	cerr << "average velcoity = " << Robot::total_distance / Robot::total_frame << endl;
 }

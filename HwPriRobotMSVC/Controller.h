@@ -39,5 +39,7 @@ public:
 	void assignTask(Robot &r);
 
 	void assignIdle();
+
+	void summary();
 };
 

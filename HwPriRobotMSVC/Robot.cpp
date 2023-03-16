@@ -5,8 +5,14 @@
 #include <string>
 #include <vector>
 #include <cmath>
+
+#include <time.h>
+
 #define MY_PI 3.14159
 using namespace std;
+
+int Robot::total_frame = 0;
+double Robot::total_distance = 0;
 
 Robot::Robot()
 {
@@ -91,13 +97,69 @@ void Robot::goTo_greed(double nx, double ny, int & nv, double & nav)
 	else if (expect_ang > MY_PI) {
 		expect_ang -= (MY_PI * 2);
 	}
-	if (expect_ang > 0) {
-		nav = MY_PI;
+	//cerr << dir << " -> " << expect_ang << " : " << x << ", " << y << " -> " << nx << ", " << ny << endl;
+	if (item == 0) {
+		if (expect_ang > 0) {
+			if (expect_ang > ang_bump) {
+				nav = MY_PI;
+			}
+			else {
+				nav = 0.1;
+			}
+			if (expect_ang < 1) {
+				nv = 6;
+			}
+			else {
+				nv = -2;
+			}
+		}
+		else {
+			if (expect_ang < -ang_bump) {
+				nav = -MY_PI;
+			}
+			else {
+				nav = -0.1;
+			}
+			if (expect_ang > -1) {
+				nv = 6;
+			}
+			else {
+				nv = -2;
+			}
+		}
 	}
 	else {
-		nav = -MY_PI;
+		if (expect_ang > 0) {
+			if (expect_ang > 0.32) {
+				nav = MY_PI;
+			}
+			else {
+				nav = 0.1;
+			}
+			if (expect_ang < 0.8) {
+				nv = 6;
+			}
+			else {
+				nv = -2;
+			}
+		}
+		else {
+			if (expect_ang < -0.32) {
+				nav = -MY_PI;
+			}
+			else {
+				nav = -0.1;
+			}
+			if (expect_ang > -0.8) {
+				nv = 6;
+			}
+			else {
+				nv = -2;
+			}
+		}
 	}
-	nv = 6;
+	
+	//nv = 6;
 }
 
 void Robot::goToTarget(int & nv, double & nav)
@@ -115,26 +177,26 @@ bool Robot::arrive()
 bool Robot::readyForBuy()
 {
 	if (workbench != -1) {
-		cerr << "can buy ? ";
+		//cerr << "can buy ? ";
 		//printRobot();
-		std::cerr << "robot target " << task->buyWb->id << " on " << workbench << endl;
+		//std::cerr << "robot target " << task->buyWb->id << " on " << workbench << endl;
 		//std::cerr << "target pos = " << target->x << ", " << target->y << ", on pos = " << x << ", " << y << endl;
-		task->buyWb->printWorkbench();
+		//task->buyWb->printWorkbench();
 		//task->sellWb->printWorkbench();
 	}
-	return task->buyWb->id == workbench && task->buyWb->pdt_status == 1;
+	return item==0 && task->buyWb->id == workbench && task->buyWb->pdt_status == 1;
 }
 
 bool Robot::readyForSell()
 {
 	if (workbench != -1) {
-		cerr << "can sell ? ";
+		//cerr << "can sell ? ";
 		//printRobot();
-		std::cerr << task->sellWb->readyForSell[item] << endl;
-		std::cerr << "robot target " << task->sellWb->id << " on " << workbench << endl;
+		//std::cerr << task->sellWb->readyForSell[item] << endl;
+		//std::cerr << "robot target " << task->sellWb->id << " on " << workbench << endl;
 		//std::cerr << "target pos = " << target->x << ", " << target->y << ", on pos = " << x << ", " << y << endl;
 		//task->buyWb->printWorkbench();
-		task->sellWb->printWorkbench();
+		//task->sellWb->printWorkbench();
 	}
 	return item != 0 && task->sellWb->id == workbench && task->sellWb->readyForSell[item];
 }
@@ -146,3 +208,31 @@ int Robot::assessTask(Task * t)
 	return (int)(sqrt(dx * dx + dy * dy) + t->distance);
 }
 
+void Robot::getTask(Task * t, int curFrame)
+{
+	//task = t;
+	start_x = x;
+	start_y = y;
+	start_dir = dir;
+	start_xv = x_vel;
+	start_yv = y_vel;
+	start_time = curFrame;
+}
+
+void Robot::finishTask(int curFrame, std::fstream &fs)
+{
+	double s_distance = distance(start_x, start_y, task->buyWb->x, task->buyWb->y);
+	total_distance += (s_distance + task->distance);
+	total_frame += (curFrame - start_time);
+	fs << " Task Frame:" << curFrame - start_time << " frame ";
+	fs << " distance " << s_distance << " + " << task->distance << " = " << s_distance + task->distance;
+	fs << " dir change " << start_dir << " -> "  << atan2(start_y - task->buyWb->y, start_x - task->buyWb->x)<< " -> "<< task->dir;
+	fs << " average v = " << (s_distance + task->distance) / (curFrame - start_time) << endl;
+}
+
+double Robot::distance(double x1, double y1, double x2, double y2)
+{
+	double dx = x1 - x2;
+	double dy = y1 - y2;
+	return sqrt(dx * dx + dy * dy);
+}
