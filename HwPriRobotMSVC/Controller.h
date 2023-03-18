@@ -37,6 +37,10 @@ public:
 
 	void allocateTask(Robot &r, Task *task);
 	void assignTask(Robot &r);
+	//考虑分工合作
+	Task* assignTask(int ri);
+	// 找能直接执行的任务
+	Task* findTask(Robot &r, vector<Task*> &optionalT);
 
 	void assignIdle();
 

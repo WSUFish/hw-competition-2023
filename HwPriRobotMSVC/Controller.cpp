@@ -70,6 +70,7 @@ void Controller::initTask()
 			}
 		}
 	}
+	
 	cerr << "task num = " <<task_num << endl;
 }
 
@@ -122,7 +123,9 @@ void Controller::allocate()
 			printf("sell %d\n", ri);
 			robots[ri].task->sell();
 			robots[ri].finishTask(curFrame, fs);
-			assignTask(robots[ri]);
+			//assignTask(robots[ri]);
+			Task * t = assignTask(ri);
+			allocateTask(robots[ri], t);
 		}
 		if (robots[ri].readyForBuy()) {
 			printf("buy %d\n", ri);
@@ -204,24 +207,105 @@ void Controller::assignTask(Robot & r)
 	for (int type = 7; type > 0; type--) {
 		for (int wi : workbenchIds[type]) {
 			for (Task* sellt : workbenchs[wi].buyTasks) {
-				int tempp = r.assessTask(sellt) + sellt->remainTime();
-				/*if (tempp > 10000 && type > 3 && workbenchs[wi].pdt_status == 1) {
-					cerr << "why doesn't select this ?" << endl;
-				}*/
-				//cerr << "task " << sellt->buyWb->type << "->" << sellt->sellWb->type << " priority = " << tempp << endl;
+				int tempp = max(r.distance(sellt->buyWb) * 10, sellt->remainTime()) + sellt->distance * 10;
 				if (tempp < priority) {
 					priority = tempp;
 					t = sellt;
 				}
 			}
 		}
+		// 前缀搜索
+		if (priority < 10000) {
+			break;
+		}
 	}
 	if (t != nullptr) {
+		// 前缀搜索
+		while (true) {
+			Task *temp = findTask(r, t->buyWb->sellTasks);
+			if (temp != nullptr) {
+				t = temp;
+			}
+			else {
+				break;
+			}
+		}
 		allocateTask(r, t);
-		cerr << clock() - start_time << " time to allocate time " << endl;
+		cerr << clock() - start_time << " time to allocate, priority = " << priority <<endl;
+		/*cerr << max(r.distance(t->buyWb) * 10, t->remainTime()) <<", " <<t->distance * 10 << ", ";
+		cerr << r.distance(t->buyWb) * 10 << ", " << t->remainTime() << endl;*/
 		return;
 	}
 	cerr << clock() - start_time << " time to allocate time " << endl;
+}
+
+//简单分配：所有能干的，干其中出价第一的最好的，没有则干最好的
+//优先干低级，低级完成能送就顺便送中级
+Task* Controller::assignTask(int ri)
+{
+	int start_time = clock();
+	if (robots[ri].task != nullptr) {
+		Task *sinorT = findTask(robots[ri], robots[ri].task->sellWb->buyTasks);
+		if (sinorT != nullptr) {
+			cerr << ri << " find afterward task ";
+			sinorT->printTask();
+			cerr << endl;
+			return sinorT;
+		}
+	}
+	Task *t = nullptr;
+	int priority = 10000;
+	Task *single_t = nullptr;
+	int single_priority = INT_MAX;
+	int robotspri[4] = { 0 };
+	for (int type = 3; type > 0; type--) {
+		for (int wi : workbenchIds[type]) {
+			for (Task* sellt : workbenchs[wi].buyTasks) {
+				for (int tri = 0; tri < 4; tri++) {
+					robotspri[tri] = robots[tri].assessTask(sellt);
+				}
+				int temp_p = robotspri[ri];
+				int max_e = *std::min_element(robotspri, robotspri + 4);
+				//同时记录4个机器人中最优的选择 和只考虑一个机器人最优选
+				if (max_e == temp_p && temp_p < priority) {
+					t = sellt;
+					priority = temp_p;
+				}
+				if (temp_p < single_priority) {
+					single_priority = temp_p;
+					single_t = sellt;
+				}
+			}
+		}
+	}
+	if (t != nullptr) {
+		cerr << ri << " find all best task ";
+		t->printTask();
+		cerr << endl;
+		cerr << clock() - start_time << " time to allocate, priority = " << priority << endl;
+		return t;
+	}
+	else {
+		cerr << ri << " find local best task ";
+		single_t->printTask();
+		cerr << endl;
+		cerr << clock() - start_time << " time to allocate, priority = " << single_priority << endl;
+		return single_t;
+	}
+}
+
+Task * Controller::findTask(Robot & r, vector<Task*>& optionalT)
+{
+	Task *t = nullptr;
+	int priority = 10000;
+	for (Task* sellt : optionalT) {
+		int tempp = r.assessTask(sellt);
+		if (tempp < priority) {
+			priority = tempp;
+			t = sellt;
+		}
+	}
+	return t;
 }
 
 void Controller::assignIdle()

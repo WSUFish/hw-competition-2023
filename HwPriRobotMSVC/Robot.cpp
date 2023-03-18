@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
-
+#include <algorithm>
 #include <time.h>
 
 #define MY_PI 3.14159
@@ -167,6 +167,18 @@ void Robot::goToTarget(int & nv, double & nav)
 	if (target != nullptr) {
 		goTo_greed(target->x, target->y, nv, nav);
 	}
+	avoidEdge(nv, nav);
+}
+
+void Robot::avoidEdge(int & nv, double & nav)
+{
+	double stop_frames = item == 0 ? 0.32 : 0.44;
+	double stop_distance = item == 0 ? 0.45 : 0.53;
+	double exp_x = x + x_vel * stop_frames;
+	double exp_y = y + y_vel * stop_frames;
+	if (exp_x < stop_distance || exp_x > 50 - stop_distance || exp_y < stop_distance || exp_y > 50 - stop_distance) {
+		nv = 0;
+	}
 }
 
 bool Robot::arrive()
@@ -203,9 +215,8 @@ bool Robot::readyForSell()
 
 int Robot::assessTask(Task * t)
 {
-	double dx = x - t->buyWb->x;
-	double dy = y - t->sellWb->y;
-	return (int)(sqrt(dx * dx + dy * dy) + t->distance);
+	double dis = task == nullptr ? distance(t->buyWb) : distance(task->sellWb->x, task->sellWb->y, t->sellWb->x, t->sellWb->y);
+	return max((int)dis * 10, t->remainTime()) + (int)t->distance * 10;
 }
 
 void Robot::getTask(Task * t, int curFrame)
@@ -236,3 +247,12 @@ double Robot::distance(double x1, double y1, double x2, double y2)
 	double dy = y1 - y2;
 	return sqrt(dx * dx + dy * dy);
 }
+
+double Robot::distance(double x1, double y1)
+{
+	double dx = x1 - x;
+	double dy = y1 - y;
+	return sqrt(dx * dx + dy * dy);
+}
+
+

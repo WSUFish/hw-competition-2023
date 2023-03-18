@@ -31,15 +31,22 @@ int Task::remainTime()
 	//std::cerr << item << ", " << buyWb->buyDelegated << sellWb->sellDelegated[item] << sellWb->readyForSell[item] << buyWb->remain_t << std::endl;
 	int time = 0;
 	if (buyWb->buyDelegated) {
-		return 10000;
+		time+= buyWb->type < 4 ? 50 : 20000;
 	}
 	if (sellWb->type < 8) {
 		if (sellWb->sellDelegated[item] || !sellWb->readyForSell[item]) {
-			return 10000;
+			time+= 10000;
 		}
 	}
 	if (buyWb->pdt_status!=1) {
-		time += (buyWb->remain_t == -1 ? 10000 : buyWb->remain_t);
+		//4567还是别等了
+		//time += (buyWb->remain_t == -1 ? 20000 : buyWb->remain_t);
+		time += (buyWb->type < 4 && buyWb->remain_t != -1 ? buyWb->remain_t : 10000);
 	}
 	return time;
+}
+
+void Task::printTask()
+{
+	std::cerr << "task " << buyWb->id << " -> " << sellWb->id << " distance = " << distance;
 }

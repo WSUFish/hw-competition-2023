@@ -46,6 +46,9 @@ public:
 	void goTo_greed(double nx, double ny, int &nv, double &nav);
 	void goToTarget(int &nv, double &nav);
 
+	//TODO 能不能不减速，油门踩死
+	void avoidEdge(int &nv, double &nav);
+
 	bool arrive();
 	bool readyForBuy();
 	bool readyForSell();
@@ -56,5 +59,8 @@ public:
 	void finishTask(int curFrame, std::fstream &fs); // fstream 完全不起作用
 
 	static double distance(double x1, double y1, double x2, double y2);
+	double distance(double x1, double y1);
+	double distance(Workbench *wb) { return distance(wb->x, wb->y); };
+
 };
 
