@@ -23,11 +23,15 @@ public:
 
 	const static std::vector<int> periods;
 
+	static std::vector<int> items_need;
+
 public:
 	Workbench(int id, int type, double x, double y);
 	void scanWorkbench();
 	void printWorkbench();
 
 	void sellItem(int item);
+
+	bool isJamed() { return remain_t == 0; };
 };
 

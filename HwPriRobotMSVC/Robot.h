@@ -22,6 +22,8 @@ public:
 	Workbench *target = nullptr;
 	Task *task = nullptr;
 
+	bool valid_task = true;
+
 	int start_time;
 	double start_x;
 	double start_y;
@@ -33,6 +35,8 @@ public:
 	static double total_distance;
 
 	const double ang_bump = 0.15;
+	const double empty_fb_ang = 1.57;
+	const double load_fb_ang = 1;
 
 public:
 	Robot();
@@ -50,6 +54,7 @@ public:
 	void avoidEdge(int &nv, double &nav);
 
 	bool arrive();
+	bool readyForUpdateTask();
 	bool readyForBuy();
 	bool readyForSell();
 

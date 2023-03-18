@@ -15,6 +15,8 @@ class Controller
 	int curFrame;
 	std::string debugLogFile;
 
+	vector<int> itemsNum;
+
 public:
 	Controller();
 	void readMap();
@@ -41,6 +43,8 @@ public:
 	Task* assignTask(int ri);
 	// 找能直接执行的任务
 	Task* findTask(Robot &r, vector<Task*> &optionalT);
+
+	int jamValue(Task *t);
 
 	void assignIdle();
 

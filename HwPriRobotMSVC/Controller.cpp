@@ -14,7 +14,7 @@
 using std::cerr;
 using std::endl;
 
-Controller::Controller():workbenchIds(10)
+Controller::Controller():workbenchIds(10),itemsNum(8)
 {
 	curFrame = 0;
 	auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -86,8 +86,19 @@ bool Controller::readFrame()
 	//cerr << "frameID = " << frameID << ", time = " << frameID * 0.02 << endl;
 	curFrame = frameID;
 	//cerr << "workbench nums = " << wbnums << endl;
+	for (int i = 0; i < 8; i++) {
+		itemsNum[i] = 0;
+	}
 	for (int i = 0; i < wbnums; i++) {
 		workbenchs[i].scanWorkbench();
+		if (workbenchs[i].pdt_status == 1 || workbenchs[i].remain_t!=-1) {
+			itemsNum[workbenchs[i].type]++;
+		}
+		for (int ii = 1; ii < 8; ii++) {
+			if (workbenchs[i].readyForSell[ii] == false) {
+				itemsNum[ii]++;
+			}
+		}
 		//workbenchs[i].printWorkbench();
 	}
 	for (Robot &r : robots) {
@@ -119,6 +130,10 @@ void Controller::allocate()
 	std::fstream fs;
 	fs.open("D:\\past\\F\\C++_file\\HwPriRobotMSVC\\x64\\record.txt", std::ios::app | std::ios::out);
 	for (int ri = 0; ri < 4; ri++) {
+		if (robots[ri].readyForUpdateTask()) {
+			Task * t = assignTask(ri);
+			allocateTask(robots[ri], t);
+		}
 		if (robots[ri].readyForSell()) {
 			printf("sell %d\n", ri);
 			robots[ri].task->sell();
@@ -130,20 +145,11 @@ void Controller::allocate()
 		if (robots[ri].readyForBuy()) {
 			printf("buy %d\n", ri);
 			robots[ri].task->buy();
+			itemsNum[robots[ri].task->item]++;
 			robots[ri].target = robots[ri].task->sellWb;
 		}
 	}
 	fs.close();
-}
-
-bool Controller::allocateSell(Robot & r, int items)
-{
-	return false;
-}
-
-bool Controller::allocateBuy(Robot & r, int items)
-{
-	return false;
 }
 
 void Controller::perform()
@@ -243,6 +249,7 @@ void Controller::assignTask(Robot & r)
 //优先干低级，低级完成能送就顺便送中级
 Task* Controller::assignTask(int ri)
 {
+	robots[ri].valid_task = true;
 	int start_time = clock();
 	if (robots[ri].task != nullptr) {
 		Task *sinorT = findTask(robots[ri], robots[ri].task->sellWb->buyTasks);
@@ -258,11 +265,22 @@ Task* Controller::assignTask(int ri)
 	Task *single_t = nullptr;
 	int single_priority = INT_MAX;
 	int robotspri[4] = { 0 };
+	vector<int> jam_pri(10, 0);
+	int min_buy_item = min(itemsNum[4], min(itemsNum[5], itemsNum[6]));
+	cerr << curFrame << " frame allocate " << ri << endl;
+	for (int i = 4; i <= 6; i++) {
+		if (itemsNum[i] > min_buy_item) {
+			jam_pri[i] = 1000;
+		}
+		cerr << i << " items num = " << itemsNum[i]<< endl;
+	}
+	jam_pri[9] = 1000;
+
 	for (int type = 3; type > 0; type--) {
 		for (int wi : workbenchIds[type]) {
 			for (Task* sellt : workbenchs[wi].buyTasks) {
 				for (int tri = 0; tri < 4; tri++) {
-					robotspri[tri] = robots[tri].assessTask(sellt);
+					robotspri[tri] = robots[tri].assessTask(sellt) + jam_pri[sellt->sellWb->type];
 				}
 				int temp_p = robotspri[ri];
 				int max_e = *std::min_element(robotspri, robotspri + 4);
@@ -278,6 +296,7 @@ Task* Controller::assignTask(int ri)
 			}
 		}
 	}
+	
 	if (t != nullptr) {
 		cerr << ri << " find all best task ";
 		t->printTask();
@@ -285,13 +304,29 @@ Task* Controller::assignTask(int ri)
 		cerr << clock() - start_time << " time to allocate, priority = " << priority << endl;
 		return t;
 	}
-	else {
-		cerr << ri << " find local best task ";
-		single_t->printTask();
-		cerr << endl;
-		cerr << clock() - start_time << " time to allocate, priority = " << single_priority << endl;
-		return single_t;
+
+	for (int type = 4; type < 8; type++) {
+		for (int wi : workbenchIds[type]) {
+			for (Task* sellt : workbenchs[wi].buyTasks) {
+				// 闲的没事干的去搞疏通吧
+				int temp_p = robots[ri].assessTask(sellt) + (workbenchs[wi].isJamed() ? 0 : 1000);
+				if (temp_p < single_priority) {
+					single_priority = temp_p;
+					single_t = sellt;
+				}
+			}
+		}
 	}
+	
+	cerr << ri << " find local best task ";
+	single_t->printTask();
+	cerr << endl;
+	cerr << clock() - start_time << " time to allocate, priority = " << single_priority << endl;
+	if (single_priority > 10000) {
+		robots[ri].valid_task = false;
+	}
+	return single_t;
+	
 }
 
 Task * Controller::findTask(Robot & r, vector<Task*>& optionalT)
@@ -306,6 +341,14 @@ Task * Controller::findTask(Robot & r, vector<Task*>& optionalT)
 		}
 	}
 	return t;
+}
+
+int Controller::jamValue(Task * t)
+{
+	if (t->item < 4) {
+		int dletanum = itemsNum[t->sellWb->type] - itemsNum[7];
+	}
+	return 0;
 }
 
 void Controller::assignIdle()

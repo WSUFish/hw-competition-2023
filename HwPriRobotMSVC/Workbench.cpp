@@ -2,6 +2,7 @@
 #include <iostream>
 
 const std::vector<int> Workbench::periods = {-1, 50, 50, 50, 500, 500, 500, 1000, 1, 1};
+std::vector<int> Workbench::items_need(8, 0);
 
 Workbench::Workbench(int id, int type, double x, double y):
 	id(id), type(type), x(x), y(y)

@@ -106,7 +106,7 @@ void Robot::goTo_greed(double nx, double ny, int & nv, double & nav)
 			else {
 				nav = 0.1;
 			}
-			if (expect_ang < 1) {
+			if (expect_ang < empty_fb_ang) {
 				nv = 6;
 			}
 			else {
@@ -120,7 +120,7 @@ void Robot::goTo_greed(double nx, double ny, int & nv, double & nav)
 			else {
 				nav = -0.1;
 			}
-			if (expect_ang > -1) {
+			if (expect_ang > -empty_fb_ang) {
 				nv = 6;
 			}
 			else {
@@ -136,7 +136,7 @@ void Robot::goTo_greed(double nx, double ny, int & nv, double & nav)
 			else {
 				nav = 0.1;
 			}
-			if (expect_ang < 0.8) {
+			if (expect_ang < load_fb_ang) {
 				nv = 6;
 			}
 			else {
@@ -150,7 +150,7 @@ void Robot::goTo_greed(double nx, double ny, int & nv, double & nav)
 			else {
 				nav = -0.1;
 			}
-			if (expect_ang > -0.8) {
+			if (expect_ang > -load_fb_ang) {
 				nv = 6;
 			}
 			else {
@@ -184,6 +184,11 @@ void Robot::avoidEdge(int & nv, double & nav)
 bool Robot::arrive()
 {
 	return target != nullptr && target->id == workbench;
+}
+
+bool Robot::readyForUpdateTask()
+{
+	return !valid_task && workbench!=-1;
 }
 
 bool Robot::readyForBuy()
