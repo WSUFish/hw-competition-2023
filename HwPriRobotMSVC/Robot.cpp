@@ -175,6 +175,40 @@ void Robot::goToTarget(int & nv, double & nav)
 	avoidEdge(nv, nav);
 }
 
+//TODO 优化
+void Robot::goToDir(double tdir, int & nv, double & nav)
+{
+	double diff = dir_minus(tdir, dir);
+	if (diff > 0) {
+		if (diff < 0.1256) {
+			nav = 0.2;
+		}
+		else {
+			nav = MY_PI;
+		}
+		if (diff < 1.57) {
+			nv = 6;
+		}
+		else {
+			nv = -2;
+		}
+	}
+	else {
+		if (diff > -0.1256) {
+			nav = -0.2;
+		}
+		else {
+			nav = -MY_PI;
+		}
+		if (diff > -1.57) {
+			nv = 6;
+		}
+		else {
+			nv = -2;
+		}
+	}
+}
+
 void Robot::avoidEdge(int & nv, double & nav)
 {
 	// 如果携带货物往墙上撞，说明前方有工作站，是不是没必要避让？
@@ -207,7 +241,7 @@ bool Robot::readyForBuy()
 		//task->buyWb->printWorkbench();
 		//task->sellWb->printWorkbench();
 	}
-	return item==0 && task->buyWb->id == workbench && task->buyWb->pdt_status == 1;
+	return valid_task && item==0 && task->buyWb->id == workbench && task->buyWb->pdt_status == 1;
 }
 
 bool Robot::readyForSell()

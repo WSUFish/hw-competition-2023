@@ -358,6 +358,7 @@ void Controller::avoidCollision(int ri, int &nv, double &nav)
 {
 	int avoid_p = 0;
 	int last_ap = robots[ri].item;
+	int last_ri = 0;
 	double dxv = 0;
 	double dyv = 0;
 	double coll_dir = 0;
@@ -375,11 +376,22 @@ void Controller::avoidCollision(int ri, int &nv, double &nav)
 			coll_dir = robots[ari].dir;
 			dxv = robots[ari].x_vel - robots[ri].x_vel;
 			dyv = robots[ari].y_vel - robots[ri].y_vel;
+			last_ri = ari;
 		}
 	}
 	if (avoid_p > 0) {
-		//double rel_dir = Robot::dir_minus(atan2(dyv, dxv), robots[ri].dir);
-		double rel_dir = Robot::dir_minus(coll_dir, robots[ri].dir);
+		double rel_dir = atan2(dyv, dxv);
+		double bt_dir = atan2(robots[ri].y - robots[last_ri].y, robots[ri].x - robots[last_ri].x);
+		double diff_btdir = Robot::dir_minus(rel_dir, bt_dir);
+		if (diff_btdir > 0) {
+			double temp_dir = Robot::dir_minus(rel_dir, 1.57);
+			robots[ri].goToDir(temp_dir, nv, nav);
+		}
+		else {
+			double temp_dir = Robot::dir_minus(rel_dir, -1.57);
+			robots[ri].goToDir(temp_dir, nv, nav);
+		}
+		/*double rel_dir = Robot::dir_minus(coll_dir, robots[ri].dir);
 		if (rel_dir > 1.57 || (rel_dir < 0 && rel_dir > - 1.57)) {
 			double index = (rel_dir > 0 ? rel_dir - 1.57 : rel_dir + 1.57) / 1.57;
 			nav = 3.14 * index;
@@ -393,7 +405,7 @@ void Controller::avoidCollision(int ri, int &nv, double &nav)
 		}
 		else {
 			nv = robots[ri].item == 0 ? 6 : 3;
-		}
+		}*/
 	}
 }
 

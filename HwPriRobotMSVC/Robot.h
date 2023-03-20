@@ -52,6 +52,7 @@ public:
 
 	void goTo_greed(double nx, double ny, int &nv, double &nav);
 	void goToTarget(int &nv, double &nav);
+	void goToDir(double tdir, int &nv, double &nav);
 
 	//TODO 能不能不减速，油门踩死
 	void avoidEdge(int &nv, double &nav);
