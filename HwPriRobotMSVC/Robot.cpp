@@ -20,7 +20,7 @@ Robot::Robot()
 	y = 0;
 }
 
-Robot::Robot(double x, double y):x(x), y(y)
+Robot::Robot(int id, double x, double y):x(x), y(y), id(id)
 {
 }
 
@@ -50,9 +50,13 @@ void Robot::setRobot(char * line)
 
 void Robot::scanRobot()
 {
-	double oxv = x_vel, oyv = y_vel, odir = dir, oav = ang_vel, ox = x, oy = y;
+	double oxv = x_vel, oyv = y_vel, odir = dir, oav = ang_vel, ox = x, oy = y, ocoll = coll_co;
 	scanf("%d %d %lf %lf %lf %lf %lf %lf %lf %lf", &workbench, &item, &time_co,
 		&coll_co, &ang_vel, &x_vel, &y_vel, &dir, &x, &y); 
+
+	if (item != 0 && coll_co!=1 && ocoll != coll_co) {
+		cerr << "robot "<< id << " collision! " << endl;
+	}
 	/*cerr << "delta xvel = " << x_vel - oxv << ", yvel = " << y_vel - oyv <<
 		", dir = " << dir - odir << ", ang_vel = " << ang_vel - oav <<
 		", x = " << x - ox << ", y = " << y - oy << endl;*/
@@ -89,6 +93,7 @@ void Robot::goTo_greed(double nx, double ny, int & nv, double & nav)
 {
 	double deltax = nx - x;
 	double deltay = ny - y;
+	double dis = distance(nx, ny);
 	
 	double expect_ang = atan2(deltay, deltax) - dir;
 	if (expect_ang < -MY_PI) {
@@ -107,7 +112,7 @@ void Robot::goTo_greed(double nx, double ny, int & nv, double & nav)
 				nav = 0.1;
 			}
 			if (expect_ang < empty_fb_ang) {
-				nv = 6;
+				nv = nearV(dis, expect_ang);
 			}
 			else {
 				nv = -2;
@@ -121,7 +126,7 @@ void Robot::goTo_greed(double nx, double ny, int & nv, double & nav)
 				nav = -0.1;
 			}
 			if (expect_ang > -empty_fb_ang) {
-				nv = 6;
+				nv = nearV(dis, expect_ang);
 			}
 			else {
 				nv = -2;
@@ -137,7 +142,7 @@ void Robot::goTo_greed(double nx, double ny, int & nv, double & nav)
 				nav = 0.1;
 			}
 			if (expect_ang < load_fb_ang) {
-				nv = 6;
+				nv = nearV(dis, expect_ang);
 			}
 			else {
 				nv = -2;
@@ -151,7 +156,7 @@ void Robot::goTo_greed(double nx, double ny, int & nv, double & nav)
 				nav = -0.1;
 			}
 			if (expect_ang > -load_fb_ang) {
-				nv = 6;
+				nv = nearV(dis, expect_ang);
 			}
 			else {
 				nv = -2;
@@ -172,7 +177,8 @@ void Robot::goToTarget(int & nv, double & nav)
 
 void Robot::avoidEdge(int & nv, double & nav)
 {
-	double stop_frames = item == 0 ? 0.32 : 0.44;
+	// 如果携带货物往墙上撞，说明前方有工作站，是不是没必要避让？
+	double stop_frames = item == 0 ? 0.36 : 0.44;
 	double stop_distance = item == 0 ? 0.45 : 0.53;
 	double exp_x = x + x_vel * stop_frames;
 	double exp_y = y + y_vel * stop_frames;
@@ -221,6 +227,7 @@ bool Robot::readyForSell()
 int Robot::assessTask(Task * t)
 {
 	double dis = task == nullptr ? distance(t->buyWb) : distance(task->sellWb->x, task->sellWb->y, t->sellWb->x, t->sellWb->y);
+	dis += (t->sellWb->type == 9 ? 300 : 0);
 	return max((int)dis * 10, t->remainTime()) + (int)t->distance * 10;
 }
 
@@ -258,6 +265,45 @@ double Robot::distance(double x1, double y1)
 	double dx = x1 - x;
 	double dy = y1 - y;
 	return sqrt(dx * dx + dy * dy);
+}
+
+double Robot::dir_minus(double dir1, double dir2)
+{
+	double delta = dir1 - dir2;
+	if (delta > MY_PI) {
+		delta -= 2 * MY_PI;
+	}
+	if (delta < -MY_PI) {
+		delta += 2 * MY_PI;
+	}
+	return delta;
+}
+
+int Robot::nearV(double distance, double delta_dir)
+{
+	if (distance > 4) {
+		return 6;
+	}
+	delta_dir = delta_dir > 0 ? delta_dir : -delta_dir;
+	//distance -= (delta_dir) / MY_PI * sqrt(x_vel * x_vel + y_vel * y_vel) * 0.48;
+	return (int) min(distance * MY_PI / (2 * delta_dir), 6.0);
+}
+
+bool Robot::mayCollision(Robot & another)
+{
+	double time_range = 0.36;
+	double radius = (item == 0 ? 0.45 : 0.53) + (another.item == 0 ? 0.45 : 0.53);
+	double dx = (x_vel - another.x_vel) * time_range;
+	double dy = (y_vel - another.y_vel) * time_range;
+	double bxmin, bymin, bxmax, bymax;
+	bxmin = min(x, x + dx) - radius;
+	bxmax = max(x, x + dx) + radius;
+	bymin = min(y, y + dy) - radius;
+	bymax = max(y, y + dy) + radius;
+	if (another.x < bxmax && another.x > bxmin && another.y < bymax && another.y > bymin) {
+		return true;
+	}
+	return false;
 }
 
 

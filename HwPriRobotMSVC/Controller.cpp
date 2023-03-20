@@ -27,11 +27,13 @@ void Controller::readMap()
 {
 	char line[1024];
 	int wbid = 0;
+	int rid = 0;
 	for (int i = 0; i < MAP_HEIGHT; i++) {
 		fgets(line, sizeof line, stdin);
 		for (int j = 0; j < MAP_WIDTH; j++) {
 			if (line[j] == 'A') {
-				robots.emplace_back(jtox(j), itoy(i));
+				robots.emplace_back(rid, jtox(j), itoy(i));
+				rid++;
 			}
 			else if (line[j] <= '9' && line[j] >= '1') {
 				workbenchIds[line[j] - '0'].push_back(wbid);
@@ -119,9 +121,10 @@ void Controller::writeFrame()
 	for (int robotId = 0; robotId < 4; robotId++) {
 		//robots[robotId].target = &workbenchs[(curFrame / 1000 + robotId * 10) % workbenchs.size()];
 		robots[robotId].goToTarget(lineSpeed, angleSpeed);
+		avoidCollision(robotId, lineSpeed, angleSpeed);
 		printf("forward %d %d\n", robotId, lineSpeed);
 		printf("rotate %d %f\n", robotId, angleSpeed);
-	}
+	}//TODO 看来应该先存速度，最后一块print
 	//OK();
 }
 
@@ -192,8 +195,8 @@ void Controller::debug()
 void Controller::allocateTask(Robot & r, Task * task)
 {
 	cerr << "allocated task " << task->buyWb->id << " -> " << task->sellWb->id << endl;
-	task->buyWb->printWorkbench();
-	task->sellWb->printWorkbench();
+	//task->buyWb->printWorkbench();
+	//task->sellWb->printWorkbench();
 #ifdef MYDEBUG
 	//Sleep(10000);
 #endif // MYDEBUG
@@ -213,7 +216,7 @@ void Controller::assignTask(Robot & r)
 	for (int type = 7; type > 0; type--) {
 		for (int wi : workbenchIds[type]) {
 			for (Task* sellt : workbenchs[wi].buyTasks) {
-				int tempp = max(r.distance(sellt->buyWb) * 10, sellt->remainTime()) + sellt->distance * 10;
+				int tempp = (int)max(r.distance(sellt->buyWb) * 10, sellt->remainTime()) + (int)sellt->distance * 10;
 				if (tempp < priority) {
 					priority = tempp;
 					t = sellt;
@@ -272,9 +275,9 @@ Task* Controller::assignTask(int ri)
 		if (itemsNum[i] > min_buy_item) {
 			jam_pri[i] = 1000;
 		}
-		cerr << i << " items num = " << itemsNum[i]<< endl;
+		//cerr << i << " items num = " << itemsNum[i]<< endl;
 	}
-	jam_pri[9] = 1000;
+	jam_pri[9] = 4000;
 
 	for (int type = 3; type > 0; type--) {
 		for (int wi : workbenchIds[type]) {
@@ -349,6 +352,49 @@ int Controller::jamValue(Task * t)
 		int dletanum = itemsNum[t->sellWb->type] - itemsNum[7];
 	}
 	return 0;
+}
+
+void Controller::avoidCollision(int ri, int &nv, double &nav)
+{
+	int avoid_p = 0;
+	int last_ap = robots[ri].item;
+	double dxv = 0;
+	double dyv = 0;
+	double coll_dir = 0;
+	for (int ari = 0; ari < 4; ari++) {
+		// 优先级更低 
+		if (last_ap > robots[ari].item || (last_ap == robots[ari].item && ari >= ri)) {
+			continue;
+		}
+		if (robots[ri].mayCollision(robots[ari])) {
+#ifdef _DEBUG
+			cerr << ri << " may collision with " << ari << endl;
+#endif // _DEBUG
+			avoid_p++;
+			last_ap = robots[ari].item;
+			coll_dir = robots[ari].dir;
+			dxv = robots[ari].x_vel - robots[ri].x_vel;
+			dyv = robots[ari].y_vel - robots[ri].y_vel;
+		}
+	}
+	if (avoid_p > 0) {
+		//double rel_dir = Robot::dir_minus(atan2(dyv, dxv), robots[ri].dir);
+		double rel_dir = Robot::dir_minus(coll_dir, robots[ri].dir);
+		if (rel_dir > 1.57 || (rel_dir < 0 && rel_dir > - 1.57)) {
+			double index = (rel_dir > 0 ? rel_dir - 1.57 : rel_dir + 1.57) / 1.57;
+			nav = 3.14 * index;
+		}
+		else {
+			double index = (rel_dir > 0 ? rel_dir - 1.57 : rel_dir + 1.57) / 1.57;
+			nav = 3.14 * index;
+		}
+		if (rel_dir > 1.57 || rel_dir < -1.57) {
+			nv = 6;
+		}
+		else {
+			nv = robots[ri].item == 0 ? 6 : 3;
+		}
+	}
 }
 
 void Controller::assignIdle()

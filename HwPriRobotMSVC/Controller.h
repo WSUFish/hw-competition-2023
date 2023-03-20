@@ -46,6 +46,8 @@ public:
 
 	int jamValue(Task *t);
 
+	void avoidCollision(int ri, int &nv, double &nav);
+
 	void assignIdle();
 
 	void summary();

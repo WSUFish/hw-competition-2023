@@ -3,6 +3,7 @@
 #include <fstream>
 #include "Workbench.h"
 
+
 class Robot
 {
 public:
@@ -34,13 +35,15 @@ public:
 	static int total_frame;
 	static double total_distance;
 
+	int id;
+
 	const double ang_bump = 0.15;
 	const double empty_fb_ang = 1.57;
 	const double load_fb_ang = 1;
 
 public:
 	Robot();
-	Robot(double x, double y);
+	Robot(int id, double x, double y);
 	void setRobot(char *line);
 	void scanRobot();
 	void printRobot();
@@ -66,6 +69,10 @@ public:
 	static double distance(double x1, double y1, double x2, double y2);
 	double distance(double x1, double y1);
 	double distance(Workbench *wb) { return distance(wb->x, wb->y); };
+	static double dir_minus(double dir1, double dir2);
 
+	int nearV(double distance, double delta_dir);
+
+	bool mayCollision(Robot &another);
 };
 
