@@ -1,6 +1,10 @@
 #pragma once
 #include <vector>
 #include "Task.h"
+#include <unordered_map>
+using std::unordered_map;
+using std::pair;
+using std::vector;
 class Task;
 class Workbench
 {
@@ -20,6 +24,10 @@ public:
 
 	std::vector<Task*> buyTasks;
 	std::vector<Task*> sellTasks;
+
+	//这真的有必要吗
+	//item - 已完成任务 - 按时间升序的<所有该item可接任务 , 时间>
+	vector<unordered_map<Task*, vector<pair<Task*, double>>>> tBestT;
 
 	const static std::vector<int> periods;
 

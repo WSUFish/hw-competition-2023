@@ -1,13 +1,12 @@
 #include "Controller.h"
 #include <fstream>
-#include <chrono>
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
-#define MYDEBUG
-#ifdef MYDEBUG
+#include <cmath>
+
+#ifdef _DEBUG
 #include <time.h>
-#include <Windows.h>
 #include <fstream>
 #endif
 
@@ -17,10 +16,6 @@ using std::endl;
 Controller::Controller():workbenchIds(10),itemsNum(8)
 {
 	curFrame = 0;
-	auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-	std::stringstream ss;
-	ss << std::put_time(std::localtime(&t), "%F-%T");
-	debugLogFile = "D:/past/F/C++_file/HwPriRobotMSVC/x64/" + ss.str() + ".txt";
 }
 
 void Controller::readMap()
@@ -42,8 +37,10 @@ void Controller::readMap()
 			}
 		}
 	}
-
+#ifdef _DEBUG
 	cerr << "robots num = " << robots.size() << ", workbenchs num = " << workbenchs.size() << endl;
+#endif // _DEBUG
+
 	readUntilOK();
 }
 
@@ -65,6 +62,7 @@ void Controller::initTask()
 			for (int etype : p.second) {
 				for (int ei : workbenchIds[etype]) {
 					Task* tempt = new Task(&workbenchs[si], &workbenchs[ei]);
+					allTasks.push_back(tempt);
 					workbenchs[si].buyTasks.push_back(tempt);
 					workbenchs[ei].sellTasks.push_back(tempt);
 					task_num++;
@@ -72,8 +70,10 @@ void Controller::initTask()
 			}
 		}
 	}
-	
+#ifdef _DEBUG
 	cerr << "task num = " <<task_num << endl;
+#endif // _DEBUG
+
 }
 
 bool Controller::readFrame()
@@ -85,9 +85,7 @@ bool Controller::readFrame()
 		return false;
 	}
 	scanf("%d", &wbnums);
-	//cerr << "frameID = " << frameID << ", time = " << frameID * 0.02 << endl;
 	curFrame = frameID;
-	//cerr << "workbench nums = " << wbnums << endl;
 	for (int i = 0; i < 8; i++) {
 		itemsNum[i] = 0;
 	}
@@ -130,8 +128,10 @@ void Controller::writeFrame()
 
 void Controller::allocate()
 {	
+#ifdef _DEBUG
 	std::fstream fs;
 	fs.open("D:\\past\\F\\C++_file\\HwPriRobotMSVC\\x64\\record.txt", std::ios::app | std::ios::out);
+#endif // _DEBUG
 	for (int ri = 0; ri < 4; ri++) {
 		if (robots[ri].readyForUpdateTask()) {
 			Task * t = assignTask(ri);
@@ -140,7 +140,11 @@ void Controller::allocate()
 		if (robots[ri].readyForSell()) {
 			printf("sell %d\n", ri);
 			robots[ri].task->sell();
+
+#ifdef _DEBUG
 			robots[ri].finishTask(curFrame, fs);
+#endif // _DEBUG
+
 			//assignTask(robots[ri]);
 			Task * t = assignTask(ri);
 			allocateTask(robots[ri], t);
@@ -152,7 +156,10 @@ void Controller::allocate()
 			robots[ri].target = robots[ri].task->sellWb;
 		}
 	}
+#ifdef _DEBUG
 	fs.close();
+#endif // _DEBUG
+
 }
 
 void Controller::perform()
@@ -167,7 +174,10 @@ void Controller::perform()
 		writeFrame();
 		OK();
 	}
+#ifdef _DEBUG
 	summary();
+#endif // _DEBUG
+
 }
 
 bool Controller::readUntilOK()
@@ -177,28 +187,20 @@ bool Controller::readUntilOK()
 		if (line[0] == 'O' && line[1] == 'K') {
 			return true;
 		}
-		//cerr << "error! unhandle input " << line << endl;
 	}
 	return false;
 }
 
 void Controller::debug()
 {
-	std::fstream of;
-	of.open(debugLogFile, std::ios::out | std::ios::app);
-	for (int i = 0; i < 4; i++) {
-		robots[i].writeDebug(of, curFrame, i);
-	}
-	of.close();
 }
 
 void Controller::allocateTask(Robot & r, Task * task)
 {
-	cerr << "allocated task " << task->buyWb->id << " -> " << task->sellWb->id << endl;
 	//task->buyWb->printWorkbench();
 	//task->sellWb->printWorkbench();
-#ifdef MYDEBUG
-	//Sleep(10000);
+#ifdef _DEBUG
+	cerr << "allocated task " << task->buyWb->id << " -> " << task->sellWb->id << endl;
 #endif // MYDEBUG
 	r.getTask(task, curFrame);
 	r.task = task;
@@ -216,7 +218,7 @@ void Controller::assignTask(Robot & r)
 	for (int type = 7; type > 0; type--) {
 		for (int wi : workbenchIds[type]) {
 			for (Task* sellt : workbenchs[wi].buyTasks) {
-				int tempp = (int)max(r.distance(sellt->buyWb) * 10, sellt->remainTime()) + (int)sellt->distance * 10;
+				int tempp = std::max((int)r.distance(sellt->buyWb) * 10, sellt->remainTime()) + (int)sellt->distance * 10;
 				if (tempp < priority) {
 					priority = tempp;
 					t = sellt;
@@ -240,12 +242,18 @@ void Controller::assignTask(Robot & r)
 			}
 		}
 		allocateTask(r, t);
+#ifdef _DEBUG
 		cerr << clock() - start_time << " time to allocate, priority = " << priority <<endl;
+#endif // _DEBUG
+
 		/*cerr << max(r.distance(t->buyWb) * 10, t->remainTime()) <<", " <<t->distance * 10 << ", ";
 		cerr << r.distance(t->buyWb) * 10 << ", " << t->remainTime() << endl;*/
 		return;
 	}
+#ifdef _DEBUG
 	cerr << clock() - start_time << " time to allocate time " << endl;
+#endif // _DEBUG
+
 }
 
 //简单分配：所有能干的，干其中出价第一的最好的，没有则干最好的
@@ -253,13 +261,19 @@ void Controller::assignTask(Robot & r)
 Task* Controller::assignTask(int ri)
 {
 	robots[ri].valid_task = true;
+
+#ifdef _DEBUG
 	int start_time = clock();
+#endif // _DEBUG
+
 	if (robots[ri].task != nullptr) {
 		Task *sinorT = findTask(robots[ri], robots[ri].task->sellWb->buyTasks);
 		if (sinorT != nullptr) {
+#ifdef _DEBUG
 			cerr << ri << " find afterward task ";
 			sinorT->printTask();
 			cerr << endl;
+#endif // _DEBUG
 			return sinorT;
 		}
 	}
@@ -269,8 +283,10 @@ Task* Controller::assignTask(int ri)
 	int single_priority = INT_MAX;
 	int robotspri[4] = { 0 };
 	vector<int> jam_pri(10, 0);
-	int min_buy_item = min(itemsNum[4], min(itemsNum[5], itemsNum[6]));
+	int min_buy_item = std::min(itemsNum[4], std::min(itemsNum[5], itemsNum[6]));
+#ifdef _DEBUG
 	cerr << curFrame << " frame allocate " << ri << endl;
+#endif // _DEBUG
 	for (int i = 4; i <= 6; i++) {
 		if (itemsNum[i] > min_buy_item) {
 			jam_pri[i] = 1000;
@@ -301,10 +317,12 @@ Task* Controller::assignTask(int ri)
 	}
 	
 	if (t != nullptr) {
+#ifdef _DEBUG
 		cerr << ri << " find all best task ";
 		t->printTask();
 		cerr << endl;
 		cerr << clock() - start_time << " time to allocate, priority = " << priority << endl;
+#endif // _DEBUG
 		return t;
 	}
 
@@ -320,11 +338,12 @@ Task* Controller::assignTask(int ri)
 			}
 		}
 	}
-	
+#ifdef _DEBUG
 	cerr << ri << " find local best task ";
 	single_t->printTask();
 	cerr << endl;
 	cerr << clock() - start_time << " time to allocate, priority = " << single_priority << endl;
+#endif // _DEBUG
 	if (single_priority > 10000) {
 		robots[ri].valid_task = false;
 	}

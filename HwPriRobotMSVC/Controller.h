@@ -13,9 +13,11 @@ class Controller
 	vector<vector<int>> workbenchIds;
 
 	int curFrame;
-	std::string debugLogFile;
 
 	vector<int> itemsNum;
+
+	vector<Task*> allTasks;
+
 
 public:
 	Controller();

@@ -50,13 +50,18 @@ void Robot::setRobot(char * line)
 
 void Robot::scanRobot()
 {
+#ifdef _DEBUG
 	double oxv = x_vel, oyv = y_vel, odir = dir, oav = ang_vel, ox = x, oy = y, ocoll = coll_co;
+#endif // _DEBUG
+
 	scanf("%d %d %lf %lf %lf %lf %lf %lf %lf %lf", &workbench, &item, &time_co,
 		&coll_co, &ang_vel, &x_vel, &y_vel, &dir, &x, &y); 
 
+#ifdef _DEBUG
 	if (item != 0 && coll_co!=1 && ocoll != coll_co) {
 		cerr << "robot "<< id << " collision! " << endl;
 	}
+#endif // _DEBUG
 	/*cerr << "delta xvel = " << x_vel - oxv << ", yvel = " << y_vel - oyv <<
 		", dir = " << dir - odir << ", ang_vel = " << ang_vel - oav <<
 		", x = " << x - ox << ", y = " << y - oy << endl;*/

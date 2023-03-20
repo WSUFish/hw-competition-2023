@@ -5,7 +5,7 @@ const std::vector<int> Workbench::periods = {-1, 50, 50, 50, 500, 500, 500, 1000
 std::vector<int> Workbench::items_need(8, 0);
 
 Workbench::Workbench(int id, int type, double x, double y):
-	id(id), type(type), x(x), y(y)
+	id(id), type(type), x(x), y(y), tBestT(8)
 {
 	if (type <= 3) {
 		remain_t = 50;
@@ -45,7 +45,10 @@ void Workbench::scanWorkbench()
 			readyForSell[6] = !(raw_status & (1 << 6));
 			break;
 		default:
+#ifdef _DEBUG
 			std::cerr << " wrong tyep change raw_status ??? " << type << std::endl;
+#endif // _DEBUG
+
 			break;
 		}
 	}
