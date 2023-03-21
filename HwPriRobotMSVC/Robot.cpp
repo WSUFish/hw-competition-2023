@@ -78,7 +78,7 @@ void Robot::printRobot()
 
 void Robot::writeDebug(std::fstream &f, int frameID, int id)
 {
-	vector<string> ss = {
+	/*vector<string> ss = {
 		to_string(frameID), to_string(id), to_string(workbench),
 		to_string(item), to_string(time_co), to_string(coll_co),
 		to_string(ang_vel), to_string(x_vel), to_string(y_vel),
@@ -91,7 +91,7 @@ void Robot::writeDebug(std::fstream &f, int frameID, int id)
 		}
 		s += ss[i];
 	}
-	f << s << endl;
+	f << s << endl;*/
 }
 
 void Robot::goTo_greed(double nx, double ny, int & nv, double & nav)
@@ -283,13 +283,13 @@ void Robot::getTask(Task * t, int curFrame)
 
 void Robot::finishTask(int curFrame, std::fstream &fs)
 {
-	double s_distance = distance(start_x, start_y, task->buyWb->x, task->buyWb->y);
+	/*double s_distance = distance(start_x, start_y, task->buyWb->x, task->buyWb->y);
 	total_distance += (s_distance + task->distance);
 	total_frame += (curFrame - start_time);
 	fs << " Task Frame:" << curFrame - start_time << " frame ";
 	fs << " distance " << s_distance << " + " << task->distance << " = " << s_distance + task->distance;
 	fs << " dir change " << start_dir << " -> "  << atan2(start_y - task->buyWb->y, start_x - task->buyWb->x)<< " -> "<< task->dir;
-	fs << " average v = " << (s_distance + task->distance) / (curFrame - start_time) << endl;
+	fs << " average v = " << (s_distance + task->distance) / (curFrame - start_time) << endl;*/
 }
 
 double Robot::distance(double x1, double y1, double x2, double y2)

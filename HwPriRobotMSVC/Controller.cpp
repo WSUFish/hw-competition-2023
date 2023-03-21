@@ -1,7 +1,6 @@
 #include "Controller.h"
-#include <fstream>
+//#include <fstream>
 #include <sstream>
-#include <iomanip>
 #include <algorithm>
 #include <cmath>
 
@@ -129,8 +128,8 @@ void Controller::writeFrame()
 void Controller::allocate()
 {	
 #ifdef _DEBUG
-	std::fstream fs;
-	fs.open("D:\\past\\F\\C++_file\\HwPriRobotMSVC\\x64\\record.txt", std::ios::app | std::ios::out);
+	/*std::fstream fs;
+	fs.open("D:\\past\\F\\C++_file\\HwPriRobotMSVC\\x64\\record.txt", std::ios::app | std::ios::out);*/
 #endif // _DEBUG
 	for (int ri = 0; ri < 4; ri++) {
 		if (robots[ri].readyForUpdateTask()) {
@@ -142,7 +141,7 @@ void Controller::allocate()
 			robots[ri].task->sell();
 
 #ifdef _DEBUG
-			robots[ri].finishTask(curFrame, fs);
+			//robots[ri].finishTask(curFrame, fs);
 #endif // _DEBUG
 
 			//assignTask(robots[ri]);
@@ -157,7 +156,7 @@ void Controller::allocate()
 		}
 	}
 #ifdef _DEBUG
-	fs.close();
+	//fs.close();
 #endif // _DEBUG
 
 }
@@ -212,9 +211,12 @@ void Controller::allocateTask(Robot & r, Task * task)
 void Controller::assignTask(Robot & r)
 {
 	//std::vector<std::pair<Task*, int>> priority;
+#ifdef _DEBUG
 	int start_time = clock();
+#endif // _DEBUG
+
 	Task *t = nullptr;
-	int priority = INT_MAX;
+	int priority = 100000;
 	for (int type = 7; type > 0; type--) {
 		for (int wi : workbenchIds[type]) {
 			for (Task* sellt : workbenchs[wi].buyTasks) {
@@ -280,7 +282,7 @@ Task* Controller::assignTask(int ri)
 	Task *t = nullptr;
 	int priority = 10000;
 	Task *single_t = nullptr;
-	int single_priority = INT_MAX;
+	int single_priority = 100000;
 	int robotspri[4] = { 0 };
 	vector<int> jam_pri(10, 0);
 	int min_buy_item = std::min(itemsNum[4], std::min(itemsNum[5], itemsNum[6]));
