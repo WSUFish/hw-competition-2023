@@ -5,8 +5,8 @@
 Task::Task(Workbench * buy, Workbench * sell):buyWb(buy),sellWb(sell)
 {
 	item = buy->type;
-	double dx = buyWb->x - sellWb->x;
-	double dy = buyWb->y - sellWb->y;
+	double dx = sellWb->x - buyWb->x;
+	double dy = sellWb->y - buyWb->y;
 	distance = sqrt(dx * dx + dy * dy);
 	dir = atan2(dy, dx);
 }
@@ -48,5 +48,23 @@ int Task::remainTime()
 
 void Task::printTask()
 {
-	std::cerr << "task " << buyWb->id << " -> " << sellWb->id << " distance = " << distance;
+	std::cerr << "task " << buyWb->id <<"("<<buyWb->type<<")"<< " -> " << sellWb->id << "(" << sellWb->type << ")"<< " distance = " << distance << std::endl;
+}
+
+double Task::toDoTime(Task * at)
+{
+	double delta_d = dir - at->dir;
+	double dx = sellWb->x - at->buyWb->x;
+	double dy = sellWb->y - at->buyWb->y;
+	double delta_distance = sqrt(dx * dx + dy * dy);
+	delta_d = delta_d > 0 ? delta_d : -delta_d;
+	delta_d = delta_d > 3.14 ? 6.28 - delta_d : delta_d;
+	return delta_d + (at->distance + delta_distance) / 6;
+}
+
+double Task::distanceSquare(Task * at)
+{
+	double dx = sellWb->x - at->sellWb->x;
+	double dy = sellWb->y - at->sellWb->y;
+	return dx*dx + dy*dy;
 }

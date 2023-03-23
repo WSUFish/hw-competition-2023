@@ -21,13 +21,20 @@ public:
 	bool buyDelegated = false;
 	bool readyForSell[8];
 	bool sellDelegated[8];
+	bool allSet = false;
 
 	std::vector<Task*> buyTasks;
 	std::vector<Task*> sellTasks;
 
 	//这真的有必要吗
-	//item - 已完成任务 - 按时间升序的<所有该item可接任务 , 时间>
-	vector<unordered_map<Task*, vector<pair<Task*, double>>>> tBestT;
+	//item - 机器人当前任务 - 按时间升序的<所有该item可接任务 , 时间>
+	//vector<unordered_map<Task*, vector<pair<Task*, double>>>> typeTask2Task;
+
+	//item - 机器人当前任务 - 最优对应任务,时间
+	vector < unordered_map<Task*, pair<Task*, double>>> typeTask2Task;
+
+	// item - selltask
+	vector<vector<Task*>> typeSellTasks;
 
 	const static std::vector<int> periods;
 
@@ -41,5 +48,9 @@ public:
 	void sellItem(int item);
 
 	bool isJamed() { return remain_t == 0; };
+
+	//在frame帧后，能否卖item给此工作站
+	bool ready(int item, int frame);
+
 };
 

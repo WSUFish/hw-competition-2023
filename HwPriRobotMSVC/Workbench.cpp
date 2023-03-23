@@ -5,7 +5,7 @@ const std::vector<int> Workbench::periods = {-1, 50, 50, 50, 500, 500, 500, 1000
 std::vector<int> Workbench::items_need(8, 0);
 
 Workbench::Workbench(int id, int type, double x, double y):
-	id(id), type(type), x(x), y(y), tBestT(8)
+	id(id), type(type), x(x), y(y), typeTask2Task(8), typeSellTasks(8)
 {
 	if (type <= 3) {
 		remain_t = 50;
@@ -30,19 +30,23 @@ void Workbench::scanWorkbench()
 		case 4:
 			readyForSell[1] = !(raw_status & (1 << 1));
 			readyForSell[2] = !(raw_status & (1 << 2));
+			allSet = !readyForSell[1] && !readyForSell[2];
 			break;
 		case 5:
 			readyForSell[1] = !(raw_status & (1 << 1));
 			readyForSell[3] = !(raw_status & (1 << 3));
+			allSet = !readyForSell[1] && !readyForSell[3];
 			break;
 		case 6:
 			readyForSell[2] = !(raw_status & (1 << 2));
 			readyForSell[3] = !(raw_status & (1 << 3));
+			allSet = !readyForSell[2] && !readyForSell[3];
 			break;
 		case 7:
 			readyForSell[4] = !(raw_status & (1 << 4));
 			readyForSell[5] = !(raw_status & (1 << 5));
 			readyForSell[6] = !(raw_status & (1 << 6));
+			allSet = !readyForSell[4] && !readyForSell[5] && !readyForSell[6];
 			break;
 		default:
 #ifdef _DEBUG
@@ -70,4 +74,27 @@ void Workbench::sellItem(int item)
 	}
 	readyForSell[item] = false;
 	raw_status |= (1 << item);
+	switch (type)
+	{
+	case 4:
+		allSet = !readyForSell[1] && !readyForSell[2];
+		break;
+	case 5:
+		allSet = !readyForSell[1] && !readyForSell[3];
+		break;
+	case 6:
+		allSet = !readyForSell[2] && !readyForSell[3];
+		break;
+	case 7:
+		allSet = !readyForSell[4] && !readyForSell[5] && !readyForSell[6];
+		break;
+	}
+}
+
+bool Workbench::ready(int item, int frame)
+{
+	if (type >= 8) {
+		return true;
+	}
+	return !sellDelegated[item] && (readyForSell[item] || (allSet && remain_t!=-1 && pdt_status == 0 && frame > remain_t));
 }

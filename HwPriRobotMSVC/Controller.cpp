@@ -3,6 +3,8 @@
 #include <sstream>
 #include <algorithm>
 #include <cmath>
+#include <queue>
+#include <unordered_set>
 
 #ifdef _DEBUG
 #include <time.h>
@@ -11,6 +13,16 @@
 
 using std::cerr;
 using std::endl;
+using std::pair;
+
+template<class T>
+struct compareTaskPair {
+	bool operator()(const T &p1, const T &p2) const{
+		return p1.second < p2.second;
+	}
+};
+
+
 
 Controller::Controller():workbenchIds(10),itemsNum(8)
 {
@@ -45,15 +57,7 @@ void Controller::readMap()
 
 void Controller::initTask()
 {
-	vector < std::pair<int, vector<int>>> topos = {
-		{1, {4, 5, 9}},
-		{2, {4, 6, 9}},
-		{3, {5, 6, 9}},
-		{4, {7, 9}},
-		{5, {7, 9}},
-		{6, {7, 9}},
-		{7, {8, 9}}
-	};
+	
 	//TODO 三级for就是搞砸了，现在直接4级for
 	int task_num = 0;
 	for (const auto & p : topos) {
@@ -64,7 +68,36 @@ void Controller::initTask()
 					allTasks.push_back(tempt);
 					workbenchs[si].buyTasks.push_back(tempt);
 					workbenchs[ei].sellTasks.push_back(tempt);
+					workbenchs[ei].typeSellTasks[p.first].push_back(tempt);
 					task_num++;
+				}
+			}
+		}
+	}
+	
+	//TODO 改完更是直接5级
+	for (Task *t : allTasks) {
+		//所有收购点类型
+		for (const auto &p : selltopos) {
+			//对应的收购工作台
+			for (int wi : workbenchIds[p.first]) {
+				//收购的物品类型
+				for (int item : p.second) {
+					//最优任务;
+					Task *optTask = nullptr;
+					double minTime = 1000000;
+					//所有出售该类型的任务
+					for (Task *et : workbenchs[wi].typeSellTasks[item]) {
+						//计算任务->出售任务所花时间
+						double tempTime = t->toDoTime(et);
+						if (tempTime < minTime) {
+							minTime = tempTime;
+							optTask = et;
+						}
+					}
+					if (optTask != nullptr) {
+						workbenchs[wi].typeTask2Task[item][t] = {optTask, minTime};
+					}
 				}
 			}
 		}
@@ -90,9 +123,9 @@ bool Controller::readFrame()
 	}
 	for (int i = 0; i < wbnums; i++) {
 		workbenchs[i].scanWorkbench();
-		if (workbenchs[i].pdt_status == 1 || workbenchs[i].remain_t!=-1) {
-			itemsNum[workbenchs[i].type]++;
-		}
+		//if (workbenchs[i].pdt_status == 1 || workbenchs[i].remain_t!=-1) {
+		//	itemsNum[workbenchs[i].type]++;
+		//}
 		for (int ii = 1; ii < 8; ii++) {
 			if (workbenchs[i].readyForSell[ii] == false) {
 				itemsNum[ii]++;
@@ -100,6 +133,7 @@ bool Controller::readFrame()
 		}
 		//workbenchs[i].printWorkbench();
 	}
+	sum456 = itemsNum[4] + itemsNum[5] + itemsNum[6];
 	for (Robot &r : robots) {
 		r.scanRobot();
 		//r.printRobot();
@@ -133,7 +167,7 @@ void Controller::allocate()
 #endif // _DEBUG
 	for (int ri = 0; ri < 4; ri++) {
 		if (robots[ri].readyForUpdateTask()) {
-			Task * t = assignTask(ri);
+			Task * t = allocateMatch(ri);
 			allocateTask(robots[ri], t);
 		}
 		if (robots[ri].readyForSell()) {
@@ -143,9 +177,9 @@ void Controller::allocate()
 #ifdef _DEBUG
 			//robots[ri].finishTask(curFrame, fs);
 #endif // _DEBUG
-
 			//assignTask(robots[ri]);
-			Task * t = assignTask(ri);
+			//Task * t = assignTask(ri);
+			Task * t = allocateMatch(ri);
 			allocateTask(robots[ri], t);
 		}
 		if (robots[ri].readyForBuy()) {
@@ -262,6 +296,8 @@ void Controller::assignTask(Robot & r)
 //优先干低级，低级完成能送就顺便送中级
 Task* Controller::assignTask(int ri)
 {
+	//allocateMatch_distance(ri);
+	//allocateMatch(ri);
 	robots[ri].valid_task = true;
 
 #ifdef _DEBUG
@@ -367,11 +403,202 @@ Task * Controller::findTask(Robot & r, vector<Task*>& optionalT)
 	return t;
 }
 
+void Controller::allocateNet(const vector<pair<int, int>> &wbItems)
+{
+
+}
+
+void Controller::allocateMatch_distance(int ri)
+{
+	//寻找与当前机器人接近的机器人
+	vector<int> near_ris;
+	for (int iri = 0; iri < 4; iri++) {
+		if (ri == iri) {
+			continue;
+		}
+		if (robots[ri].task->distanceSquare(robots[iri].task) < match_range_sq) {
+			near_ris.push_back(iri);
+		}
+	}
+	int near_nums = near_ris.size() + 1;
+	//根据数量决定分配几个任务
+	std::priority_queue<pair<Task*, double>, vector<pair<Task*, double>>, compareTaskPair<pair<Task*, double>>> pq;
+	Task *curT = robots[ri].task;
+	for (int sti = 0; sti < 3; sti++) {
+		for (int wi : workbenchIds[selltopos[sti].first]) {
+			for (int item : selltopos[sti].second) {
+				//TODO 要更精确吗
+				if (!workbenchs[wi].ready(item, 100)) {
+					continue;
+				}
+				double assess_time = workbenchs[wi].typeTask2Task[item][curT].second;
+				if (pq.empty() || assess_time < pq.top().second) {
+					pq.push(workbenchs[wi].typeTask2Task[item][curT]);
+				}
+				if (pq.size() > near_nums) {
+					pq.pop();
+				}
+			}
+		}
+	}
+	vector<Task*> alterTasks;
+	while (!pq.empty()) {
+		alterTasks.push_back(pq.top().first);
+		pq.pop();
+	}
+	cerr << "robot " << ri << " allocate task, there are " << near_nums-1 << " robots around ";
+	cerr << "and alternative tasks for robot" << ri << " are: \n";
+	for (Task * at : alterTasks) {
+		at->printTask();
+	}
+}
+
+Task* Controller::allocateMatch(int ri)
+{
+#ifdef _DEBUG
+	int start_time = clock();
+#endif // _DEBUG
+
+	robots[ri].valid_task = true;
+
+	//来都来了，顺手送了
+	//TODO 能7何9要考虑
+	if (robots[ri].task->sellWb->pdt_status == 1 && robots[ri].task->sellWb->allSet) {
+		int item = robots[ri].task->sellWb->type;
+		Task *seniorT = nullptr;
+		int minFrame = 100000;
+		for (Task *buyTask : robots[ri].task->sellWb->buyTasks) {
+			int frame = (int)robots[ri].task->toDoTime(buyTask) * 50;
+			if (buyTask->sellWb->ready(item, frame) && minFrame > frame) {
+				seniorT = buyTask;
+				minFrame = frame;
+			}
+		}
+		if (seniorT != nullptr) {
+			return seniorT;
+		}
+	}
+
+	std::priority_queue<pair<Task*, double>, vector<pair<Task*, double>>, compareTaskPair<pair<Task*, double>>> pq;
+	std::unordered_set<int> taskType;
+	//引入根据场上456数量调整对456的输入
+	vector<double> item_prioirty(8);
+	for (int i = 4; i <= 6; i++) {
+		item_prioirty[i] = itemsNum[i] > (sum456 / 3) ? 20 : 0;
+	}
+	for (int iri = 0; iri < 4; iri++) {
+		Task* curT = robots[iri].task;
+		for (int sti = 0; sti < 3; sti++) {
+			for (int wi : workbenchIds[selltopos[sti].first]) {
+				for (int item : selltopos[sti].second) {
+					//TODO 要更精确吗
+					if (!workbenchs[wi].ready(item, 100)) {
+						continue;
+					}
+					double assess_time = workbenchs[wi].typeTask2Task[item][curT].second + item_prioirty[selltopos[sti].first];
+					if (pq.size() < 4) {
+						pq.push(workbenchs[wi].typeTask2Task[item][curT]);
+					}
+					else if (assess_time < pq.top().second) {
+						pq.pop();
+						pq.push(workbenchs[wi].typeTask2Task[item][curT]);
+					}
+				}
+			}
+		}
+#ifdef _DEBUG
+		cerr << "robot " << iri << " current task : ";
+		curT->printTask();
+#endif // _DEBUG
+
+		while (!pq.empty()) {
+
+#ifdef _DEBUG
+			//cerr << "robot " << iri << " best task : " << pq.top().second << " ";
+			//pq.top().first->printTask();
+#endif // _DEBUG
+
+			int tempType = pq.top().first->sellWb->id * 100 + pq.top().first->item;
+			taskType.insert(tempType);
+			pq.pop();
+		}
+	}
+#ifdef _DEBUG
+	cerr << "can allocate " << taskType.size() << " different type task" << endl;
+#endif // _DEBUG
+
+	
+	vector<vector<int>> timeMatrix(4, vector<int>(taskType.size()));
+	vector<Task*> riTasks(taskType.size());
+	int tti = 0;
+	for (int tempTaskType : taskType) {
+		int wi = tempTaskType / 100;
+		int item = tempTaskType % 10;
+		riTasks[tti] = workbenchs[wi].typeTask2Task[item][robots[ri].task].first;
+		for (int iri = 0; iri < 4; iri++) {
+			timeMatrix[iri][tti] = (int)(100 * workbenchs[wi].typeTask2Task[item][robots[iri].task].second);
+		}
+		tti++;
+	}
+	int taskTypeId = mpm.minimumTaskId(timeMatrix, ri);
+
+#ifdef _DEBUG
+	for (int iri = 0; iri < 4; iri++) {
+		if (mpm.matchId[iri] >= riTasks.size()) {
+			cerr << "robot " << iri << " should spare! ";
+			continue;
+		}
+		cerr << "robot " << iri << " should get task ";
+		riTasks[mpm.matchId[iri]]->printTask();
+	}
+	cerr << "allocate_match cost " << clock() - start_time << " ms " << endl;
+#endif // _DEBUG
+
+	if (taskTypeId < riTasks.size()) {
+		return riTasks[taskTypeId];
+	}
+
+	//空闲处理
+	int single_priority = 100000;
+	Task *single_t = nullptr;
+	for (int type = 4; type < 8; type++) {
+		for (int wi : workbenchIds[type]) {
+			for (Task* sellt : workbenchs[wi].buyTasks) {
+				// 闲的没事干的去搞疏通吧
+				int way_frame = 50 * (int)(robots[ri].task->toDoTime(sellt));
+				int temp_p = (sellt->sellWb->ready(type, way_frame) ? way_frame : 10000)
+					+ (workbenchs[wi].isJamed()? 0 : 1000) + (sellt->sellWb->type==9 ? 900:0);
+				if (temp_p < single_priority) {
+					single_priority = temp_p;
+					single_t = sellt;
+				}
+			}
+		}
+	}
+	if (single_priority > 10000) {
+		//没法做的任务
+		robots[ri].valid_task = false;
+	}
+#ifdef _DEBUG
+	cerr << "spare task assign to robot " << ri << " : priority = " << single_priority << " ";
+	single_t->printTask();
+#endif // _DEBUG
+
+	return single_t;
+}
+
 int Controller::jamValue(Task * t)
 {
 	if (t->item < 4) {
 		int dletanum = itemsNum[t->sellWb->type] - itemsNum[7];
 	}
+	return 0;
+}
+
+int Controller::assessSenoirTask(Robot &r, Task *tarT)
+{
+	Workbench *wb = tarT->sellWb;
+	
 	return 0;
 }
 
@@ -390,7 +617,7 @@ void Controller::avoidCollision(int ri, int &nv, double &nav)
 		}
 		if (robots[ri].mayCollision(robots[ari])) {
 #ifdef _DEBUG
-			cerr << ri << " may collision with " << ari << endl;
+			//cerr << ri << " may collision with " << ari << endl;
 #endif // _DEBUG
 			avoid_p++;
 			last_ap = robots[ari].item;
