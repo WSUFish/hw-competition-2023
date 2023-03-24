@@ -109,3 +109,33 @@ bool Workbench::readyForBuy(int frame)
 	}
 	return !buyDelegated && (pdt_status == 1 || (remain_t != -1 && remain_t < frame));
 }
+
+int Workbench::demand(int item)
+{
+	if (!readyForSell[item] || sellDelegated[item]) {
+		return 0;
+	}
+	int delta = 0;
+	switch (type)
+	{
+	case 4:
+	case 5:
+	case 6:
+		for (int i = 1; i <= 3; i++) {
+			if (!readyForSell[i] || sellDelegated[i]) {
+				delta += 1;
+			}
+		}
+		return delta;
+		break;
+	case 7:
+		for (int i = 4; i <= 6; i++) {
+			if (!readyForSell[i] || sellDelegated[i]) {
+				delta += 1;
+			}
+		}
+		return delta;
+		break;
+	}
+	return 0;
+}

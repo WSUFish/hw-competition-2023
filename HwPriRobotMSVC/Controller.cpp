@@ -236,12 +236,12 @@ void Controller::allocateTask(Robot & r, Task * task)
 		r.task = task;
 		r.target = task->buyWb;
 #ifdef _DEBUG
-		cerr << "fake task " << task->buyWb->id << " -> " << task->sellWb->id << endl;
+		cerr << "robot " << r.id << " fake task " << task->buyWb->id << " -> " << task->sellWb->id << endl;
 #endif // _DEBUG
 		return;
 	}
 #ifdef _DEBUG
-	cerr << "allocated task " << task->buyWb->id << " -> " << task->sellWb->id << endl;
+	cerr << "robot " << r.id << " allocated task " << task->buyWb->id << " -> " << task->sellWb->id << endl;
 #endif // _DEBUG
 	r.getTask(task, curFrame);
 	r.task = task;
@@ -470,16 +470,22 @@ Task* Controller::allocateMatch(int ri)
 	robots[ri].valid_task = true;
 
 	//来都来了，顺手送了
-	//TODO 能7何9要考虑
-	if (robots[ri].task->sellWb->pdt_status == 1 && robots[ri].task->sellWb->allSet) {
+
+	//感觉只有图三要考虑是否先干附近能干的活再送走
+	//if (robots[ri].task->sellWb->pdt_status == 1 && robots[ri].task->sellWb->allSet)
+	if (robots[ri].task->sellWb->pdt_status == 1) {
 		int item = robots[ri].task->sellWb->type;
 		Task *seniorT = nullptr;
-		int minFrame = 100000;
+		int minFrame = 1000000;
 		for (Task *buyTask : robots[ri].task->sellWb->buyTasks) {
 			int frame = (int)robots[ri].task->toDoTime(buyTask) * 50;
-			if (buyTask->sellWb->ready(item, frame) && minFrame > frame) {
+			//能7何9？
+			int senoirPri = frame + (buyTask->sellWb->type == 9 ? 3000 : 0);
+			//优先需求 TODO加入分工考虑？
+			senoirPri += 1000 * (3 - buyTask->sellWb->demand(item));
+			if (buyTask->sellWb->ready(item, frame) && minFrame > senoirPri) {
 				seniorT = buyTask;
-				minFrame = frame;
+				minFrame = senoirPri;
 			}
 		}
 		if (seniorT != nullptr) {
@@ -492,7 +498,7 @@ Task* Controller::allocateMatch(int ri)
 	//引入根据场上456数量调整对456的输入
 	vector<double> item_prioirty(8);
 	for (int i = 4; i <= 6; i++) {
-		item_prioirty[i] = itemsNum[i] > (sum456 / 3) ? 20 : 0;
+		item_prioirty[i] = itemsNum[i] > (sum456 / 3) ? 200 : 0;
 	}
 	for (int iri = 0; iri < 4; iri++) {
 		Task* curT = robots[iri].task;
@@ -505,12 +511,14 @@ Task* Controller::allocateMatch(int ri)
 						continue;
 					}
 					double assess_time = workbenchs[wi].typeTask2Task[item][curT].second + item_prioirty[selltopos[sti].first];
+					assess_time += 50 * (3 - workbenchs[wi].demand(item));
+					//cerr << wi << "(" << workbenchs[wi].type << ") demand item " << item << " : "<<workbenchs[wi].demand(item) << endl;
 					if (pq.size() < 4) {
-						pq.push(workbenchs[wi].typeTask2Task[item][curT]);
+						pq.emplace(workbenchs[wi].typeTask2Task[item][curT].first, assess_time);
 					}
 					else if (assess_time < pq.top().second) {
 						pq.pop();
-						pq.push(workbenchs[wi].typeTask2Task[item][curT]);
+						pq.emplace(workbenchs[wi].typeTask2Task[item][curT].first, assess_time);
 					}
 				}
 			}
@@ -524,8 +532,8 @@ Task* Controller::allocateMatch(int ri)
 		while (!pq.empty()) {
 
 #ifdef _DEBUG
-			//cerr << "robot " << iri << " best task : " << pq.top().second << " ";
-			//pq.top().first->printTask();
+			cerr << "robot " << iri << " best task : " << pq.top().second << " ";
+			pq.top().first->printTask();
 #endif // _DEBUG
 
 			int tempType = pq.top().first->sellWb->id * 100 + pq.top().first->item;
@@ -554,12 +562,12 @@ Task* Controller::allocateMatch(int ri)
 
 #ifdef _DEBUG
 	for (int iri = 0; iri < 4; iri++) {
-		if (mpm.matchId[iri] >= riTasks.size()) {
+		if (mpm.robotMatchTaskId[iri] >= riTasks.size()) {
 			cerr << "robot " << iri << " should spare! ";
 			continue;
 		}
 		cerr << "robot " << iri << " should get task ";
-		riTasks[mpm.matchId[iri]]->printTask();
+		riTasks[mpm.robotMatchTaskId[iri]]->printTask();
 	}
 	cerr << "allocate_match cost " << clock() - start_time << " ms " << endl;
 #endif // _DEBUG

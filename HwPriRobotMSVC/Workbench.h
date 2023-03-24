@@ -53,5 +53,7 @@ public:
 	bool ready(int item, int frame);
 
 	bool readyForBuy(int frame);
+
+	int demand(int item);
 };
 
