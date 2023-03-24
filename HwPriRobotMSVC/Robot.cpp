@@ -62,6 +62,7 @@ void Robot::scanRobot()
 		cerr << "robot "<< id << " collision! " << endl;
 	}
 #endif // _DEBUG
+	assessRemainT();
 	/*cerr << "delta xvel = " << x_vel - oxv << ", yvel = " << y_vel - oyv <<
 		", dir = " << dir - odir << ", ang_vel = " << ang_vel - oav <<
 		", x = " << x - ox << ", y = " << y - oy << endl;*/
@@ -222,7 +223,7 @@ void Robot::avoidEdge(int & nv, double & nav)
 	double exp_x = x + x_vel * stop_frames;
 	double exp_y = y + y_vel * stop_frames;
 	if (exp_x < stop_distance || exp_x > 50 - stop_distance || exp_y < stop_distance || exp_y > 50 - stop_distance) {
-		nv = 0;
+		nv = 1;
 	}
 }
 
@@ -343,6 +344,20 @@ bool Robot::mayCollision(Robot & another)
 		return true;
 	}
 	return false;
+}
+
+void Robot::assessRemainT()
+{
+	if (task == nullptr) {
+		remain_t = 0;
+		return;
+	}
+	if (item == 0) {
+		remain_t = distance(target) / 6 + task->distance / 6;
+	}
+	else {
+		remain_t = distance(target) / 6;
+	}
 }
 
 

@@ -13,6 +13,9 @@ public:
 	int priority = 0;
 
 	Task(Workbench *buy, Workbench *sell);
+	
+	//为初始化准备的
+	Task(Workbench *start);
 	void buy() ;
 	void sell() ;
 
@@ -25,5 +28,7 @@ public:
 	double toDoTime(Task *at);
 
 	double distanceSquare(Task *at);
+
+	static double differ_dir(double d1, double d2);
 };
 

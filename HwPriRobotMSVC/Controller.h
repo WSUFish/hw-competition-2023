@@ -9,11 +9,13 @@ using std::vector;
 class Controller
 {
 	enum{MAP_WIDTH = 100, MAP_HEIGHT = 100};
+	enum{ChokeMode, PipeLineMode, MultiMode, GreedMode};
 	vector<Robot> robots;
 	vector<Workbench> workbenchs;
 	vector<vector<int>> workbenchIds;
 
 	int curFrame;
+	int mode;
 
 	vector<int> itemsNum;
 	int sum456;
@@ -43,11 +45,16 @@ class Controller
 	const double match_range_sq = 50;
 	MinimumPowerMatch mpm;
 
+	Workbench *chocked = nullptr;
+	vector<double> item_prioirty;
+
 public:
 	Controller();
 	void readMap();
 	bool readFrame();
 	void initTask();
+
+	void initRobotTask();
 	
 	void writeFrame();
 	void perform();
@@ -77,6 +84,10 @@ public:
 
 	Task* allocateMatch(int ri);
 
+	int matchPriority(Robot &r, int wi, int item);
+
+	Task *chokeAllocate(int ri);
+
 	int jamValue(Task *t);
 
 	//是否允许卖给9，需要根据场上情况判断
@@ -88,6 +99,6 @@ public:
 
 	void summary();
 
-	bool readyForBuySienor();
+	bool readyForBuySienor(int ri);
 };
 

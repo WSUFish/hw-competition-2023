@@ -24,7 +24,7 @@ struct compareTaskPair {
 
 
 
-Controller::Controller():workbenchIds(10),itemsNum(8)
+Controller::Controller():workbenchIds(10),itemsNum(8), item_prioirty(8)
 {
 	curFrame = 0;
 }
@@ -57,6 +57,21 @@ void Controller::readMap()
 
 void Controller::initTask()
 {
+	/*添加一种虚假工作站0，主要意义在于为机器人提供一个初始任务，使得分配
+任务机制保持一致*/
+	int wbid = (int)workbenchs.size();
+	for (int i = 0; i < 4; i++) {
+		workbenchIds[0].push_back(wbid);
+		workbenchs.emplace_back(wbid, 0, robots[i].x, robots[i].y);
+		wbid++;
+	}
+	wbid -= 4;
+	for(int i = 0; i < 4; i++){
+		Task *start_t = new Task(&workbenchs[wbid]);
+		allTasks.push_back(start_t);
+		robots[i].task = start_t;
+		wbid++;
+	}
 	
 	//TODO 三级for就是搞砸了，现在直接4级for
 	int task_num = 0;
@@ -74,7 +89,7 @@ void Controller::initTask()
 			}
 		}
 	}
-	
+
 	//TODO 改完更是直接5级
 	for (Task *t : allTasks) {
 		//所有收购点类型
@@ -106,6 +121,14 @@ void Controller::initTask()
 	cerr << "task num = " <<task_num << endl;
 #endif // _DEBUG
 
+}
+
+void Controller::initRobotTask()
+{
+	for (int ri = 0; ri < 4; ri++) {
+		Task *t = allocateMatch(ri);
+		allocateTask(robots[ri], t);
+	}
 }
 
 bool Controller::readFrame()
@@ -199,7 +222,8 @@ void Controller::perform()
 {
 	readMap();
 	initTask();
-	assignIdle();
+	//assignIdle();
+	initRobotTask();
 	OK();
 	while (readFrame()) {
 		printf("%d\n", curFrame);
@@ -248,6 +272,7 @@ void Controller::allocateTask(Robot & r, Task * task)
 	task->buyWb->buyDelegated = true;
 	task->sellWb->sellDelegated[task->buyWb->type] = true;
 	r.target = task->buyWb;
+	r.assessRemainT();
 }
 
 void Controller::assignTask(Robot & r)
@@ -496,10 +521,15 @@ Task* Controller::allocateMatch(int ri)
 	std::priority_queue<pair<Task*, double>, vector<pair<Task*, double>>, compareTaskPair<pair<Task*, double>>> pq;
 	std::unordered_set<int> taskType;
 	//引入根据场上456数量调整对456的输入
-	vector<double> item_prioirty(8);
+	
 	for (int i = 4; i <= 6; i++) {
-		item_prioirty[i] = itemsNum[i] > (sum456 / 3) ? 200 : 0;
+		//cerr << i << " item : " << itemsNum[i] << " / " <<sum456 <<endl;
+		item_prioirty[i] = itemsNum[i] > (sum456 / 3) ? 400 : 0;
 	}
+	//TODO 脸都不要了
+	item_prioirty[5] += 400;
+	item_prioirty[6] += 400;
+
 	for (int iri = 0; iri < 4; iri++) {
 		Task* curT = robots[iri].task;
 		// 456
@@ -511,7 +541,9 @@ Task* Controller::allocateMatch(int ri)
 						continue;
 					}
 					double assess_time = workbenchs[wi].typeTask2Task[item][curT].second + item_prioirty[selltopos[sti].first];
-					assess_time += 50 * (3 - workbenchs[wi].demand(item));
+					assess_time += 200 * (3 - workbenchs[wi].demand(item));
+					//如果满了，则额外惩罚
+					assess_time += item_prioirty[selltopos[sti].first] * workbenchs[wi].pdt_status;
 					//cerr << wi << "(" << workbenchs[wi].type << ") demand item " << item << " : "<<workbenchs[wi].demand(item) << endl;
 					if (pq.size() < 4) {
 						pq.emplace(workbenchs[wi].typeTask2Task[item][curT].first, assess_time);
@@ -554,7 +586,13 @@ Task* Controller::allocateMatch(int ri)
 		int item = tempTaskType % 10;
 		riTasks[tti] = workbenchs[wi].typeTask2Task[item][robots[ri].task].first;
 		for (int iri = 0; iri < 4; iri++) {
-			timeMatrix[iri][tti] = (int)(100 * workbenchs[wi].typeTask2Task[item][robots[iri].task].second);
+			//cerr << "robot " << iri << " workbench " << wi << " - item - " << item << endl;
+			timeMatrix[iri][tti] = (int)(50 * workbenchs[wi].typeTask2Task[item][robots[iri].task].second);
+			timeMatrix[iri][tti] += matchPriority(robots[ri], wi, item);
+			//再加时间惩罚？
+			if (iri != ri) {
+				timeMatrix[iri][tti] += (int)(robots[iri].remain_t * 50);
+			}
 		}
 		tti++;
 	}
@@ -612,6 +650,29 @@ Task* Controller::allocateMatch(int ri)
 	return single_t;
 }
 
+int Controller::matchPriority(Robot & r, int wi, int item)
+{
+	double add_pri = item_prioirty[workbenchs[wi].type];
+	add_pri += 200 * (3 - workbenchs[wi].demand(item));
+	//如果满了，则额外惩罚
+	add_pri += item_prioirty[workbenchs[wi].type] * workbenchs[wi].pdt_status;
+	//add_pri += r.remain_t;
+	return (int)add_pri;
+}
+
+Task * Controller::chokeAllocate(int ri)
+{
+	if (chocked == nullptr) {
+		return allocateMatch(ri);
+	}
+	for (int wi : workbenchIds[7]) {
+		for (int item : Workbench::items_need[chocked->type]) {
+
+		}
+	}
+	return nullptr;
+}
+
 int Controller::jamValue(Task * t)
 {
 	if (t->item < 4) {
@@ -653,6 +714,7 @@ void Controller::avoidCollision(int ri, int &nv, double &nav)
 		}
 	}
 	if (avoid_p > 0) {
+		//大部分时候还行，但是会有护卫和壁咚两种现象
 		double rel_dir = atan2(dyv, dxv);
 		double bt_dir = atan2(robots[ri].y - robots[last_ri].y, robots[ri].x - robots[last_ri].x);
 		double diff_btdir = Robot::dir_minus(rel_dir, bt_dir);
@@ -665,9 +727,10 @@ void Controller::avoidCollision(int ri, int &nv, double &nav)
 			temp_dir = Robot::dir_minus(rel_dir, -1.57);
 			robots[ri].goToDir(temp_dir, nv, nav);
 		}
-		double diff_adir = std::abs(Robot::dir_minus(coll_dir, temp_dir));
-		if (diff_adir < 0.785) {
-			nv = (int)(nv * diff_adir / 1.57);
+
+		//double target_dir = atan2(robots[ri].target->y - robots[ri].y, robots[ri].target->x - robots[ri].x);
+		if (abs(Robot::dir_minus(coll_dir, robots[ri].dir)) > 1.57) {
+			nv = nv / 3;
 		}
 	}
 }

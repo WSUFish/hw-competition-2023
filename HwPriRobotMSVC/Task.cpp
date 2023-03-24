@@ -11,6 +11,14 @@ Task::Task(Workbench * buy, Workbench * sell):buyWb(buy),sellWb(sell)
 	dir = atan2(dy, dx);
 }
 
+Task::Task(Workbench * start):sellWb(start)
+{
+	buyWb = nullptr;
+	item = 0;
+	distance = 0;
+	dir = 0;
+}
+
 void Task::buy() {
 	buyWb->buyDelegated = false;
 	buyWb->pdt_status = 0;
@@ -48,17 +56,25 @@ int Task::remainTime()
 
 void Task::printTask()
 {
-	std::cerr << "task " << buyWb->id <<"("<<buyWb->type<<")"<< " -> " << sellWb->id << "(" << sellWb->type << ")"<< " distance = " << distance << std::endl;
+	if (buyWb != nullptr) {
+		std::cerr << "task " << buyWb->id <<"("<<buyWb->type<<")"<< " -> " << sellWb->id << "(" << sellWb->type << ")"<< " distance = " << distance << std::endl;
+	}
+	else {
+		std::cerr << "task robot start point -> " << sellWb->id << "(" << sellWb->type << ")" << " distance = " << distance << std::endl;
+	}
 }
 
 double Task::toDoTime(Task * at)
 {
-	double delta_d = dir - at->dir;
-	double dx = sellWb->x - at->buyWb->x;
-	double dy = sellWb->y - at->buyWb->y;
+	double dx = at->buyWb->x - sellWb->x;
+	double dy = at->buyWb->y - sellWb->y;
+	double inter_d = atan2(dy, dx);
+	
+	double delta_d = differ_dir(dir, inter_d);
+	double inter_delta_d = differ_dir(inter_d, at->dir);
+	
 	double delta_distance = sqrt(dx * dx + dy * dy);
-	delta_d = delta_d > 0 ? delta_d : -delta_d;
-	delta_d = delta_d > 3.14 ? 6.28 - delta_d : delta_d;
+
 	return delta_d + (at->distance + delta_distance) / 6;
 }
 
@@ -67,4 +83,13 @@ double Task::distanceSquare(Task * at)
 	double dx = sellWb->x - at->sellWb->x;
 	double dy = sellWb->y - at->sellWb->y;
 	return dx*dx + dy*dy;
+}
+
+double Task::differ_dir(double d1, double d2)
+{
+	double dd = abs(d1 - d2);
+	if (dd > 3.14) {
+		dd = 6.28 - dd;
+	}
+	return dd;
 }

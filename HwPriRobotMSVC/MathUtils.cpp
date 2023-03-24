@@ -17,12 +17,12 @@ int MinimumPowerMatch::minimumTaskId(const vector<vector<int>>& ntimes, int rid)
 	int n = ntimes[0].size();
 
 #ifdef _DEBUG
-	//for (int i = 0; i < m; i++) {
-	//	for (int j = 0; j < n; j++) {
-	//		cerr << ntimes[i][j] << " ";
-	//	}
-	//	cerr << endl;
-	//}
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < n; j++) {
+			cerr << ntimes[i][j] << " ";
+		}
+		cerr << endl;
+	}
 #endif // _DEBUG
 
 	tNum = std::max(m, n);
@@ -70,9 +70,9 @@ int MinimumPowerMatch::minimumTaskId(const vector<vector<int>>& ntimes, int rid)
 		robotMatchTaskId[matchId[ti]] = ti;
 	}
 #ifdef _DEBUG
-	//for (int i = 0; i < m; i++) {
-	//	cerr << i << " match " << matchId[i] <<endl;
-	//}
+	for (int i = 0; i < tNum; i++) {
+		cerr << i << " match " << matchId[i] <<endl;
+	}
 #endif // _DEBUG
 	return robotMatchTaskId[rid];
 }

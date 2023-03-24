@@ -38,7 +38,7 @@ public:
 
 	const static std::vector<int> periods;
 
-	static std::vector<int> items_need;
+	static std::vector<vector<int>> items_need;
 
 public:
 	Workbench(int id, int type, double x, double y);

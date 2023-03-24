@@ -41,6 +41,8 @@ public:
 	const double empty_fb_ang = 1.57;
 	const double load_fb_ang = 1.57;
 
+	double remain_t = 0;
+
 public:
 	Robot();
 	Robot(int id, double x, double y);
@@ -75,5 +77,7 @@ public:
 	int nearV(double distance, double delta_dir);
 
 	bool mayCollision(Robot &another);
+
+	void assessRemainT();
 };
 
