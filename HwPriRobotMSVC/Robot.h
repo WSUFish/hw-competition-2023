@@ -39,7 +39,7 @@ public:
 
 	const double ang_bump = 0.15;
 	const double empty_fb_ang = 1.57;
-	const double load_fb_ang = 1;
+	const double load_fb_ang = 1.57;
 
 public:
 	Robot();

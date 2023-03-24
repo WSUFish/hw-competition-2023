@@ -98,3 +98,14 @@ bool Workbench::ready(int item, int frame)
 	}
 	return !sellDelegated[item] && (readyForSell[item] || (allSet && remain_t!=-1 && pdt_status == 0 && frame > remain_t));
 }
+
+bool Workbench::readyForBuy(int frame)
+{
+	if (type >= 8) {
+		return false;
+	}
+	if (type <= 3) {
+		return true;
+	}
+	return !buyDelegated && (pdt_status == 1 || (remain_t != -1 && remain_t < frame));
+}

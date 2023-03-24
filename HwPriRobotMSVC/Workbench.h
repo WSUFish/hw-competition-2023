@@ -52,5 +52,6 @@ public:
 	//在frame帧后，能否卖item给此工作站
 	bool ready(int item, int frame);
 
+	bool readyForBuy(int frame);
 };
 

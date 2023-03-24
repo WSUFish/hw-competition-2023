@@ -127,7 +127,7 @@ bool Controller::readFrame()
 		//	itemsNum[workbenchs[i].type]++;
 		//}
 		for (int ii = 1; ii < 8; ii++) {
-			if (workbenchs[i].readyForSell[ii] == false) {
+			if (workbenchs[i].readyForSell[ii] == false || workbenchs[i].sellDelegated[ii] == true) {
 				itemsNum[ii]++;
 			}
 		}
@@ -232,9 +232,17 @@ void Controller::allocateTask(Robot & r, Task * task)
 {
 	//task->buyWb->printWorkbench();
 	//task->sellWb->printWorkbench();
+	if (r.valid_task == false) {
+		r.task = task;
+		r.target = task->buyWb;
+#ifdef _DEBUG
+		cerr << "fake task " << task->buyWb->id << " -> " << task->sellWb->id << endl;
+#endif // _DEBUG
+		return;
+	}
 #ifdef _DEBUG
 	cerr << "allocated task " << task->buyWb->id << " -> " << task->sellWb->id << endl;
-#endif // MYDEBUG
+#endif // _DEBUG
 	r.getTask(task, curFrame);
 	r.task = task;
 	task->buyWb->buyDelegated = true;
@@ -420,7 +428,7 @@ void Controller::allocateMatch_distance(int ri)
 			near_ris.push_back(iri);
 		}
 	}
-	int near_nums = near_ris.size() + 1;
+	int near_nums = (int)near_ris.size() + 1;
 	//根据数量决定分配几个任务
 	std::priority_queue<pair<Task*, double>, vector<pair<Task*, double>>, compareTaskPair<pair<Task*, double>>> pq;
 	Task *curT = robots[ri].task;
@@ -488,6 +496,7 @@ Task* Controller::allocateMatch(int ri)
 	}
 	for (int iri = 0; iri < 4; iri++) {
 		Task* curT = robots[iri].task;
+		// 456
 		for (int sti = 0; sti < 3; sti++) {
 			for (int wi : workbenchIds[selltopos[sti].first]) {
 				for (int item : selltopos[sti].second) {
@@ -505,6 +514,7 @@ Task* Controller::allocateMatch(int ri)
 					}
 				}
 			}
+
 		}
 #ifdef _DEBUG
 		cerr << "robot " << iri << " current task : ";
@@ -566,7 +576,8 @@ Task* Controller::allocateMatch(int ri)
 			for (Task* sellt : workbenchs[wi].buyTasks) {
 				// 闲的没事干的去搞疏通吧
 				int way_frame = 50 * (int)(robots[ri].task->toDoTime(sellt));
-				int temp_p = (sellt->sellWb->ready(type, way_frame) ? way_frame : 10000)
+				int temp_p = (sellt->buyWb->readyForBuy(50) ? 0 : 10000)
+					+ (sellt->sellWb->ready(type, way_frame) ? way_frame : 10000)
 					+ (workbenchs[wi].isJamed()? 0 : 1000) + (sellt->sellWb->type==9 ? 900:0);
 				if (temp_p < single_priority) {
 					single_priority = temp_p;
@@ -575,9 +586,15 @@ Task* Controller::allocateMatch(int ri)
 			}
 		}
 	}
-	if (single_priority > 10000) {
-		//没法做的任务
-		robots[ri].valid_task = false;
+	if (single_priority >= 10000) {
+		//连个闲的任务都没有啊
+		if (riTasks.empty()) {
+			//就做假任务
+			robots[ri].valid_task = false;
+		}
+		else {
+			return riTasks.front();
+		}
 	}
 #ifdef _DEBUG
 	cerr << "spare task assign to robot " << ri << " : priority = " << single_priority << " ";
@@ -631,29 +648,19 @@ void Controller::avoidCollision(int ri, int &nv, double &nav)
 		double rel_dir = atan2(dyv, dxv);
 		double bt_dir = atan2(robots[ri].y - robots[last_ri].y, robots[ri].x - robots[last_ri].x);
 		double diff_btdir = Robot::dir_minus(rel_dir, bt_dir);
+		double temp_dir;
 		if (diff_btdir > 0) {
-			double temp_dir = Robot::dir_minus(rel_dir, 1.57);
+			temp_dir = Robot::dir_minus(rel_dir, 1.57);
 			robots[ri].goToDir(temp_dir, nv, nav);
 		}
 		else {
-			double temp_dir = Robot::dir_minus(rel_dir, -1.57);
+			temp_dir = Robot::dir_minus(rel_dir, -1.57);
 			robots[ri].goToDir(temp_dir, nv, nav);
 		}
-		/*double rel_dir = Robot::dir_minus(coll_dir, robots[ri].dir);
-		if (rel_dir > 1.57 || (rel_dir < 0 && rel_dir > - 1.57)) {
-			double index = (rel_dir > 0 ? rel_dir - 1.57 : rel_dir + 1.57) / 1.57;
-			nav = 3.14 * index;
+		double diff_adir = std::abs(Robot::dir_minus(coll_dir, temp_dir));
+		if (diff_adir < 0.785) {
+			nv = (int)(nv * diff_adir / 1.57);
 		}
-		else {
-			double index = (rel_dir > 0 ? rel_dir - 1.57 : rel_dir + 1.57) / 1.57;
-			nav = 3.14 * index;
-		}
-		if (rel_dir > 1.57 || rel_dir < -1.57) {
-			nv = 6;
-		}
-		else {
-			nv = robots[ri].item == 0 ? 6 : 3;
-		}*/
 	}
 }
 

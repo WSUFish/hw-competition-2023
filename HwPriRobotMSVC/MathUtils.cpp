@@ -70,9 +70,9 @@ int MinimumPowerMatch::minimumTaskId(const vector<vector<int>>& ntimes, int rid)
 		robotMatchTaskId[matchId[ti]] = ti;
 	}
 #ifdef _DEBUG
-	for (int i = 0; i < m; i++) {
-		cerr << i << " match " << matchId[i] <<endl;
-	}
+	//for (int i = 0; i < m; i++) {
+	//	cerr << i << " match " << matchId[i] <<endl;
+	//}
 #endif // _DEBUG
 	return robotMatchTaskId[rid];
 }
