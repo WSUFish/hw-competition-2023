@@ -53,6 +53,7 @@ public:
 	void writeDebug(std::fstream &f, int frameID, int id);
 
 	void goTo_greed(double nx, double ny, int &nv, double &nav);
+	void goToDir_PID(double tdir, int &nv, double &nav);
 	void goToTarget(int &nv, double &nav);
 	void goToDir(double tdir, int &nv, double &nav);
 
@@ -77,6 +78,8 @@ public:
 	int nearV(double distance, double delta_dir);
 
 	bool mayCollision(Robot &another);
+
+	bool mayCrashEdge();
 
 	void assessRemainT();
 };

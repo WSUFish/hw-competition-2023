@@ -169,8 +169,31 @@ void Robot::goTo_greed(double nx, double ny, int & nv, double & nav)
 			}
 		}
 	}
-	
+	//goToDir_PID(expect_ang, nv, nav);
 	//nv = 6;
+}
+
+void Robot::goToDir_PID(double tdir, int & nv, double & nav)
+{
+	double diff = tdir;
+	if (item == 0) {
+		double stop_dir = ang_vel * ang_vel / 2.0 / 62.2 + 0.01;
+		if (diff * ang_vel < 0 || abs(diff) > stop_dir) {
+			nav = diff > 0 ? MY_PI : -MY_PI;
+		}
+		else {
+			nav = 0;
+		}
+	}
+	else {
+		double stop_dir = ang_vel * ang_vel / 2.0 / 20.1 + 0.01;
+		if (diff * ang_vel < 0 || abs(diff) > stop_dir) {
+			nav = diff > 0 ? MY_PI : -MY_PI;
+		}
+		else {
+			nav = 0;
+		}
+	}
 }
 
 void Robot::goToTarget(int & nv, double & nav)
@@ -178,41 +201,74 @@ void Robot::goToTarget(int & nv, double & nav)
 	if (target != nullptr) {
 		goTo_greed(target->x, target->y, nv, nav);
 	}
-	avoidEdge(nv, nav);
+	//avoidEdge(nv, nav);
 }
 
 //TODO ÓÅ»¯
 void Robot::goToDir(double tdir, int & nv, double & nav)
 {
 	double diff = dir_minus(tdir, dir);
-	if (diff > 0) {
-		if (diff < 0.1256) {
-			nav = 0.2;
+	if (item == 0) {
+		if (diff > 0) {
+			if (diff < 0.1256) {
+				nav = 0.2;
+			}
+			else {
+				nav = MY_PI;
+			}
+			if (diff < 1.57) {
+				nv = 6;
+			}
+			else {
+				nv = -2;
+			}
 		}
 		else {
-			nav = MY_PI;
-		}
-		if (diff < 1.57) {
-			nv = 6;
-		}
-		else {
-			nv = -2;
+			if (diff > -0.1256) {
+				nav = -0.2;
+			}
+			else {
+				nav = -MY_PI;
+			}
+			if (diff > -1.57) {
+				nv = 6;
+			}
+			else {
+				nv = -2;
+			}
 		}
 	}
 	else {
-		if (diff > -0.1256) {
-			nav = -0.2;
+		if (diff > 0) {
+			if (diff < 0.36) {
+				nav = 0.2;
+			}
+			else {
+				nav = MY_PI;
+			}
+			if (diff < 1.57) {
+				nv = 6;
+			}
+			else {
+				nv = -2;
+			}
 		}
 		else {
-			nav = -MY_PI;
-		}
-		if (diff > -1.57) {
-			nv = 6;
-		}
-		else {
-			nv = -2;
+			if (diff > -0.36) {
+				nav = -0.2;
+			}
+			else {
+				nav = -MY_PI;
+			}
+			if (diff > -1.57) {
+				nv = 6;
+			}
+			else {
+				nv = -2;
+			}
 		}
 	}
+	goToDir_PID(diff, nv, nav);
 }
 
 void Robot::avoidEdge(int & nv, double & nav)
@@ -321,7 +377,7 @@ double Robot::dir_minus(double dir1, double dir2)
 
 int Robot::nearV(double distance, double delta_dir)
 {
-	if (distance > 4) {
+	if (distance > 4 || delta_dir == 0) {
 		return 6;
 	}
 	delta_dir = delta_dir > 0 ? delta_dir : -delta_dir;
@@ -341,6 +397,18 @@ bool Robot::mayCollision(Robot & another)
 	bymin = min(y, y + dy) - radius;
 	bymax = max(y, y + dy) + radius;
 	if (another.x < bxmax && another.x > bxmin && another.y < bymax && another.y > bymin) {
+		return true;
+	}
+	return false;
+}
+
+bool Robot::mayCrashEdge()
+{
+	double stop_frames = item == 0 ? 0.36 : 0.44;
+	double stop_distance = item == 0 ? 0.45 : 0.53;
+	double exp_x = x + 0.05 + x_vel * stop_frames;
+	double exp_y = y + 0.05 + y_vel * stop_frames;
+	if (exp_x < stop_distance || exp_x > 50 - stop_distance || exp_y < stop_distance || exp_y > 50 - stop_distance) {
 		return true;
 	}
 	return false;

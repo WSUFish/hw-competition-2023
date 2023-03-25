@@ -24,7 +24,8 @@ struct compareTaskPair {
 
 
 
-Controller::Controller():workbenchIds(10),itemsNum(10), item_prioirty(10), itemsInPrepare(10)
+Controller::Controller():workbenchIds(10),itemsNum(10), 
+	item_prioirty(10), itemsInPrepare(10), itemsNeeded(10)
 {
 	curFrame = 0;
 }
@@ -59,6 +60,9 @@ void Controller::readMap()
 	}
 	else if (workbenchIds[4].size() == 1) {
 		mode = ChokeMode;
+	}
+	else if (workbenchIds[7].size() == 0) {
+		mode = MultiMode;
 	}
 }
 
@@ -151,6 +155,7 @@ bool Controller::readFrame()
 	for (int i = 0; i < 10; i++) {
 		itemsNum[i] = 0;
 		itemsInPrepare[i] = 0;
+		itemsNeeded[i] = 0;
 	}
 	for (int i = 0; i < wbnums; i++) {
 		workbenchs[i].scanWorkbench();
@@ -172,10 +177,20 @@ bool Controller::readFrame()
 		}
 		//workbenchs[i].printWorkbench();
 	}
+	for (int wi : workbenchIds[7]) {
+		for (int ii = 4; ii <= 6; ii++) {
+			if (workbenchs[wi].readyForSell[ii] == true && workbenchs[wi].sellDelegated[ii] == false) {
+				itemsNeeded[ii]++;
+			}
+		}
+	}
 	sum456 = itemsNum[4] + itemsNum[5] + itemsNum[6];
 	for (Robot &r : robots) {
 		r.scanRobot();
 		//r.printRobot();
+	}
+	if (curFrame > 8000) {
+		greed_flag = true;
 	}
 	readUntilOK();
 	return true;
@@ -191,6 +206,8 @@ void Controller::writeFrame()
 	for (int robotId = 0; robotId < 4; robotId++) {
 		//robots[robotId].target = &workbenchs[(curFrame / 1000 + robotId * 10) % workbenchs.size()];
 		robots[robotId].goToTarget(lineSpeed, angleSpeed);
+		robots[robotId].avoidEdge(lineSpeed, angleSpeed);
+		
 		avoidCollision(robotId, lineSpeed, angleSpeed);
 		printf("forward %d %d\n", robotId, lineSpeed);
 		printf("rotate %d %f\n", robotId, angleSpeed);
@@ -506,6 +523,17 @@ void Controller::allocateMatch_distance(int ri)
 
 Task* Controller::allocateMatch(int ri)
 {
+	robots[ri].valid_task = true;
+
+	if (greed_flag) {
+		Task * t = allocateGreed(ri);
+		if (t != nullptr) {
+			return t;
+		}
+		else {
+			robots[ri].valid_task = false;
+		}
+	}
 	if (mode == PipeLineMode) {
 		return allocatePipeLine(ri);
 	}
@@ -515,7 +543,7 @@ Task* Controller::allocateMatch(int ri)
 	int start_time = clock();
 #endif // _DEBUG
 
-	robots[ri].valid_task = true;
+	
 
 	//来都来了，顺手送了
 
@@ -551,8 +579,8 @@ Task* Controller::allocateMatch(int ri)
 	}
 	if (mode == ChokeMode) {
 		//TODO 脸都不要了
-		item_prioirty[5] += 400;
-		item_prioirty[6] += 400;
+		item_prioirty[5] += 700;
+		item_prioirty[6] += 700;
 	}
 
 	for (int iri = 0; iri < 4; iri++) {
@@ -565,10 +593,10 @@ Task* Controller::allocateMatch(int ri)
 					if (!workbenchs[wi].ready(item, 100)) {
 						continue;
 					}
-					double assess_time = workbenchs[wi].typeTask2Task[item][curT].second + item_prioirty[selltopos[sti].first];
-					assess_time += 200 * (3 - workbenchs[wi].demand(item));
+					double assess_time = 50 * workbenchs[wi].typeTask2Task[item][curT].second;
+					assess_time += matchPriority(robots[iri], wi, item);
 					//如果满了，则额外惩罚
-					assess_time += item_prioirty[selltopos[sti].first] * workbenchs[wi].pdt_status;
+					//assess_time += item_prioirty[selltopos[sti].first] * workbenchs[wi].pdt_status;
 					//cerr << wi << "(" << workbenchs[wi].type << ") demand item " << item << " : "<<workbenchs[wi].demand(item) << endl;
 					if (pq.size() < 4) {
 						pq.emplace(workbenchs[wi].typeTask2Task[item][curT].first, assess_time);
@@ -613,10 +641,11 @@ Task* Controller::allocateMatch(int ri)
 		for (int iri = 0; iri < 4; iri++) {
 			//cerr << "robot " << iri << " workbench " << wi << " - item - " << item << endl;
 			timeMatrix[iri][tti] = (int)(50 * workbenchs[wi].typeTask2Task[item][robots[iri].task].second);
-			timeMatrix[iri][tti] += matchPriority(robots[ri], wi, item);
+			timeMatrix[iri][tti] += matchPriority(robots[iri], wi, item);
 			//再加时间惩罚？
 			if (iri != ri) {
-				timeMatrix[iri][tti] += (int)(robots[iri].remain_t * 50);
+				//timeMatrix[iri][tti] += (int)(robots[iri].remain_t * 50) * workbenchs[wi].demand(item);
+				timeMatrix[iri][tti] += (int)(robots[iri].remain_t * 50) * (workbenchs[wi].type==4?1:0);
 			}
 		}
 		tti++;
@@ -685,7 +714,12 @@ int Controller::matchPriority(Robot & r, int wi, int item)
 	double add_pri = item_prioirty[workbenchs[wi].type];
 	add_pri += 200 * (3 - workbenchs[wi].demand(item));
 	//如果满了，则额外惩罚
-	add_pri += item_prioirty[workbenchs[wi].type] * workbenchs[wi].pdt_status;
+	//add_pri += item_prioirty[workbenchs[wi].type] * workbenchs[wi].pdt_status;
+	//除非有的选，不然别把工作台堵着了
+	if (workbenchs[wi].demand(item) != 0 && workbenchs[wi].remain_t!=-1 
+		&& workbenchs[wi].pdt_status==1 && itemsNeeded[workbenchs[wi].type]==0) {
+		add_pri += 3000;
+	}
 	//add_pri += r.remain_t;
 	return (int)add_pri;
 }
@@ -727,9 +761,15 @@ void Controller::avoidCollision(int ri, int &nv, double &nav)
 	double dyv = 0;
 	double coll_dir = 0;
 	for (int ari = 0; ari < 4; ari++) {
-		// 优先级更低 
-		if (last_ap > robots[ari].item || (last_ap == robots[ari].item && ari >= ri)) {
+		if (ari == ri) {
 			continue;
+		}
+		// 优先级更低 
+		if (last_ap > robots[ari].item || (last_ap == robots[ari].item && ari > ri)) {
+			//要撞墙了，让一让
+			if (!robots[ari].mayCrashEdge()) {
+				continue;
+			}
 		}
 		if (robots[ri].mayCollision(robots[ari])) {
 #ifdef _DEBUG
@@ -744,11 +784,19 @@ void Controller::avoidCollision(int ri, int &nv, double &nav)
 		}
 	}
 	if (avoid_p > 0) {
+		//TODO 两种都不太行，哪个比较好呢？
 		//大部分时候还行，但是会有护卫和壁咚两种现象
-		double rel_dir = atan2(dyv, dxv);
+		double rel_dir;
+		if (dyv * dyv + dxv * dxv > 0.1) {
+			rel_dir = atan2(dyv, dxv);
+		}
+		else {
+			rel_dir = coll_dir;
+		}
 		double bt_dir = atan2(robots[ri].y - robots[last_ri].y, robots[ri].x - robots[last_ri].x);
-		double diff_btdir = Robot::dir_minus(rel_dir, bt_dir);
 		double temp_dir;
+		
+		double diff_btdir = Robot::dir_minus(rel_dir, bt_dir);
 		if (diff_btdir > 0) {
 			temp_dir = Robot::dir_minus(rel_dir, 1.57);
 			robots[ri].goToDir(temp_dir, nv, nav);
@@ -757,11 +805,26 @@ void Controller::avoidCollision(int ri, int &nv, double &nav)
 			temp_dir = Robot::dir_minus(rel_dir, -1.57);
 			robots[ri].goToDir(temp_dir, nv, nav);
 		}
+		if (abs(Robot::dir_minus(robots[ri].dir, coll_dir)) < 0.785 
+			&& abs(Robot::dir_minus(robots[ri].dir, bt_dir)) < 1.57) {
+			nv = -1;
+		}
+
+		//double diff_btdir = Robot::dir_minus(robots[last_ri].dir, bt_dir);
+		//if (diff_btdir > 0) {
+		//	temp_dir = Robot::dir_minus(bt_dir, 1.57);
+		//	robots[ri].goToDir(temp_dir, nv, nav);
+		//}
+		//else {
+		//	temp_dir = Robot::dir_minus(bt_dir, 1.57);
+		//	robots[ri].goToDir(temp_dir, nv, nav);
+		//}
+		//if (abs(Robot::dir_minus(robots[ri].dir, bt_dir)) > 1.8) {
+		//	nv = nv / 3;
+		//}
+
 
 		//double target_dir = atan2(robots[ri].target->y - robots[ri].y, robots[ri].target->x - robots[ri].x);
-		if (abs(Robot::dir_minus(coll_dir, robots[ri].dir)) > 1.57) {
-			nv = nv / 3;
-		}
 	}
 }
 
@@ -916,4 +979,29 @@ int Controller::pipeLinePriority(Robot & r, int wi, int item)
 	assess_time += 50 * (1 - workbenchs[wi].pdt_status);
 	//如果满了，则额外惩罚
 	return (int)assess_time;
+}
+
+Task * Controller::allocateGreed(int ri)
+{
+	Task *seniorT = nullptr;
+	int minFrame = 10000;
+	for (int sti = 0; sti < 4; sti++) {
+		for (int wi : workbenchIds[selltopos[sti].first]) {
+			if (workbenchs[wi].pdt_status == 0) {
+				continue;
+			}
+			for (Task *buyTask : workbenchs[wi].buyTasks) {
+				int frame = (int)robots[ri].task->toDoTime(buyTask) * 50;
+				//能7何9？
+				int senoirPri = frame + (buyTask->sellWb->type == 9 ? 3000 : 0);
+				//优先需求 TODO加入分工考虑？
+				if (buyTask->sellWb->ready(workbenchs[wi].type, frame) && minFrame > senoirPri
+					&& curFrame + frame +250 < 9000) {
+					seniorT = buyTask;
+					minFrame = senoirPri;
+				}
+			}
+		}
+	}
+	return seniorT;
 }

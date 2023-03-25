@@ -16,9 +16,11 @@ class Controller
 
 	int curFrame;
 	int mode;
+	bool greed_flag = false;
 
 	vector<int> itemsNum;
 	vector<int> itemsInPrepare;
+	vector<int> itemsNeeded;
 	int sum456;
 
 	vector<Task*> allTasks;
@@ -105,5 +107,7 @@ public:
 	Task* allocatePipeLine(int ri);
 
 	int pipeLinePriority(Robot &r, int wi, int item);
+
+	Task* allocateGreed(int ri);
 };
 
