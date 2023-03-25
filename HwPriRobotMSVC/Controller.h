@@ -109,5 +109,7 @@ public:
 	int pipeLinePriority(Robot &r, int wi, int item);
 
 	Task* allocateGreed(int ri);
+
+	Task* allocateMulti(int ri);
 };
 

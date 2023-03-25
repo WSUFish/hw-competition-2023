@@ -189,7 +189,7 @@ bool Controller::readFrame()
 		r.scanRobot();
 		//r.printRobot();
 	}
-	if (curFrame > 8000) {
+	if (curFrame > 8000 ) {
 		greed_flag = true;
 	}
 	readUntilOK();
@@ -222,7 +222,7 @@ void Controller::allocate()
 	fs.open("D:\\past\\F\\C++_file\\HwPriRobotMSVC\\x64\\record.txt", std::ios::app | std::ios::out);*/
 #endif // _DEBUG
 	for (int ri = 0; ri < 4; ri++) {
-		if (robots[ri].readyForUpdateTask()) {
+		if (robots[ri].readyForUpdateTask() && !greed_flag) {
 			Task * t = allocateMatch(ri);
 			allocateTask(robots[ri], t);
 		}
@@ -549,7 +549,7 @@ Task* Controller::allocateMatch(int ri)
 
 	//感觉只有图三要考虑是否先干附近能干的活再送走
 	//if (robots[ri].task->sellWb->pdt_status == 1 && robots[ri].task->sellWb->allSet)
-	if (robots[ri].task->sellWb->pdt_status == 1) {
+	if (!greed_flag && robots[ri].task->sellWb->pdt_status == 1) {
 		int item = robots[ri].task->sellWb->type;
 		Task *seniorT = nullptr;
 		int minFrame = 1000000;
@@ -581,6 +581,20 @@ Task* Controller::allocateMatch(int ri)
 		//TODO 脸都不要了
 		item_prioirty[5] += 700;
 		item_prioirty[6] += 700;
+	}
+	else if (mode == MultiMode) {
+		item_prioirty[4] = 0;
+		item_prioirty[5] = 0;
+		item_prioirty[6] = 0;
+		for (int iri = 0; iri < 4; iri++) {
+			if (iri == ri) {
+				continue;
+			}
+			item_prioirty[robots[iri].task->sellWb->type] += 1000;
+		}
+		if (item_prioirty[6] > 0) {
+			item_prioirty[6] -= 1000;
+		}
 	}
 
 	for (int iri = 0; iri < 4; iri++) {
@@ -984,10 +998,17 @@ int Controller::pipeLinePriority(Robot & r, int wi, int item)
 Task * Controller::allocateGreed(int ri)
 {
 	Task *seniorT = nullptr;
-	int minFrame = 10000;
+	int minFrame = 100000;
+#ifdef _DEBUG
+	cerr << "greed allocate, current frame = " << curFrame << endl;
+#endif // _DEBUG
+
 	for (int sti = 0; sti < 4; sti++) {
 		for (int wi : workbenchIds[selltopos[sti].first]) {
-			if (workbenchs[wi].pdt_status == 0) {
+			double dx = workbenchs[wi].x - robots[ri].x;
+			double dy = workbenchs[wi].y - robots[ri].y;
+			double dis_frame = sqrt(dx * dx + dy * dy) / 6 * 50;
+			if (!workbenchs[wi].readyForBuy((int)dis_frame)) {
 				continue;
 			}
 			for (Task *buyTask : workbenchs[wi].buyTasks) {
@@ -996,10 +1017,15 @@ Task * Controller::allocateGreed(int ri)
 				int senoirPri = frame + (buyTask->sellWb->type == 9 ? 3000 : 0);
 				//优先需求 TODO加入分工考虑？
 				if (buyTask->sellWb->ready(workbenchs[wi].type, frame) && minFrame > senoirPri
-					&& curFrame + frame +250 < 9000) {
+					&& curFrame + frame +150 < 9000) {
 					seniorT = buyTask;
 					minFrame = senoirPri;
 				}
+#ifdef _DEBUG
+				cerr << "assess task expected frame " << curFrame + frame + 150 << " : ";
+				buyTask->printTask();
+#endif // _DEBUG
+
 			}
 		}
 	}
