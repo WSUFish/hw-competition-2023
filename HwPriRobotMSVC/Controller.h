@@ -18,6 +18,7 @@ class Controller
 	int mode;
 
 	vector<int> itemsNum;
+	vector<int> itemsInPrepare;
 	int sum456;
 
 	vector<Task*> allTasks;
@@ -100,5 +101,9 @@ public:
 	void summary();
 
 	bool readyForBuySienor(int ri);
+
+	Task* allocatePipeLine(int ri);
+
+	int pipeLinePriority(Robot &r, int wi, int item);
 };
 

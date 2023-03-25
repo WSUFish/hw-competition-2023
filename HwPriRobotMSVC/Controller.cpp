@@ -24,7 +24,7 @@ struct compareTaskPair {
 
 
 
-Controller::Controller():workbenchIds(10),itemsNum(8), item_prioirty(8)
+Controller::Controller():workbenchIds(10),itemsNum(10), item_prioirty(10), itemsInPrepare(10)
 {
 	curFrame = 0;
 }
@@ -53,6 +53,13 @@ void Controller::readMap()
 #endif // _DEBUG
 
 	readUntilOK();
+
+	if (workbenchIds[1].size() == 1) {
+		mode = PipeLineMode;
+	}
+	else if (workbenchIds[4].size() == 1) {
+		mode = ChokeMode;
+	}
 }
 
 void Controller::initTask()
@@ -141,8 +148,9 @@ bool Controller::readFrame()
 	}
 	scanf("%d", &wbnums);
 	curFrame = frameID;
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 10; i++) {
 		itemsNum[i] = 0;
+		itemsInPrepare[i] = 0;
 	}
 	for (int i = 0; i < wbnums; i++) {
 		workbenchs[i].scanWorkbench();
@@ -152,6 +160,14 @@ bool Controller::readFrame()
 		for (int ii = 1; ii < 8; ii++) {
 			if (workbenchs[i].readyForSell[ii] == false || workbenchs[i].sellDelegated[ii] == true) {
 				itemsNum[ii]++;
+			}
+		}
+		for (int ii = 1; ii < 8; ii++) {
+			if (workbenchs[i].remain_t!=-1 || workbenchs[i].pdt_status == 1 
+				|| workbenchs[i].readyForSell[ii] == false 
+				|| workbenchs[i].sellDelegated[ii] == true) {
+				itemsInPrepare[workbenchs[i].type]++;
+				break;
 			}
 		}
 		//workbenchs[i].printWorkbench();
@@ -271,6 +287,8 @@ void Controller::allocateTask(Robot & r, Task * task)
 	r.task = task;
 	task->buyWb->buyDelegated = true;
 	task->sellWb->sellDelegated[task->buyWb->type] = true;
+	//不一定正确
+	itemsInPrepare[task->sellWb->type]++;
 	r.target = task->buyWb;
 	r.assessRemainT();
 }
@@ -488,6 +506,11 @@ void Controller::allocateMatch_distance(int ri)
 
 Task* Controller::allocateMatch(int ri)
 {
+	if (mode == PipeLineMode) {
+		return allocatePipeLine(ri);
+	}
+
+
 #ifdef _DEBUG
 	int start_time = clock();
 #endif // _DEBUG
@@ -526,9 +549,11 @@ Task* Controller::allocateMatch(int ri)
 		//cerr << i << " item : " << itemsNum[i] << " / " <<sum456 <<endl;
 		item_prioirty[i] = itemsNum[i] > (sum456 / 3) ? 400 : 0;
 	}
-	//TODO 脸都不要了
-	item_prioirty[5] += 400;
-	item_prioirty[6] += 400;
+	if (mode == ChokeMode) {
+		//TODO 脸都不要了
+		item_prioirty[5] += 400;
+		item_prioirty[6] += 400;
+	}
 
 	for (int iri = 0; iri < 4; iri++) {
 		Task* curT = robots[iri].task;
@@ -652,6 +677,11 @@ Task* Controller::allocateMatch(int ri)
 
 int Controller::matchPriority(Robot & r, int wi, int item)
 {
+	if (mode == PipeLineMode) {
+		double add_pri = item_prioirty[workbenchs[wi].type];
+		add_pri += 500 * (2 - workbenchs[wi].demand(item));
+		return add_pri;
+	}
 	double add_pri = item_prioirty[workbenchs[wi].type];
 	add_pri += 200 * (3 - workbenchs[wi].demand(item));
 	//如果满了，则额外惩罚
@@ -748,4 +778,142 @@ void Controller::summary()
 {
 	cerr << "robot cost total " << Robot::total_frame << " ms go " << Robot::total_distance << " m, ";
 	cerr << "average velcoity = " << Robot::total_distance / Robot::total_frame << endl;
+}
+
+Task* Controller::allocatePipeLine(int ri)
+{
+	
+	bool doSenoior = true;
+	for (int iri = 0; iri < 4; iri++) {
+		if (iri == ri) {
+			continue;
+		}
+		if (robots[iri].task->item > 3) {
+			doSenoior = false;
+			break;
+		}
+	}
+	if (doSenoior) {
+		Task *seniorT = nullptr;
+		int minFrame = 10000;
+		for (int sti = 0; sti < 4; sti++) {
+			for (int wi : workbenchIds[selltopos[sti].first]) {
+				if (workbenchs[wi].pdt_status == 0) {
+					continue;
+				}
+				for (Task *buyTask : workbenchs[wi].buyTasks) {
+					int frame = (int)robots[ri].task->toDoTime(buyTask) * 50;
+					//能7何9？
+					int senoirPri = frame + (buyTask->sellWb->type == 9 ? 3000 : 0);
+					//优先需求 TODO加入分工考虑？
+					senoirPri += 200 * (3 - buyTask->sellWb->demand(workbenchs[wi].type));
+					senoirPri += 200 * (buyTask->sellWb->remain_t > 0 ? 1 : 0);
+					if (buyTask->sellWb->ready(workbenchs[wi].type, frame) && minFrame > senoirPri) {
+						seniorT = buyTask;
+						minFrame = senoirPri;
+					}
+				}
+			}
+		}
+		if (seniorT != nullptr) {
+			return seniorT;
+		}
+	}
+	for (int i = 4; i <= 6; i++) {
+		//cerr << i << " item : " << itemsNum[i] << " / " <<sum456 <<endl;
+		item_prioirty[i] = itemsNum[i] > (sum456 / 3) ? 200 : 0;
+	}
+	std::priority_queue<pair<Task*, double>, vector<pair<Task*, double>>, compareTaskPair<pair<Task*, double>>> pq;
+	std::unordered_set<int> taskType;
+	for (int iri = 0; iri < 4; iri++) {
+		Task* curT = robots[iri].task;
+		// 456 7 8
+		for (int sti = 0; sti < 3; sti++) {
+			for (int wi : workbenchIds[selltopos[sti].first]) {
+				for (int item : selltopos[sti].second) {
+					//TODO 要更精确吗
+					if (!workbenchs[wi].ready(item, 100)) {
+						continue;
+					}
+					double assess_time = pipeLinePriority(robots[ri], wi, item);
+					//cerr << wi << "(" << workbenchs[wi].type << ") demand item " << item << " : "<<workbenchs[wi].demand(item) << endl;
+					if (pq.size() < 4) {
+						pq.emplace(workbenchs[wi].typeTask2Task[item][curT].first, assess_time);
+					}
+					else if (assess_time < pq.top().second) {
+						pq.pop();
+						pq.emplace(workbenchs[wi].typeTask2Task[item][curT].first, assess_time);
+					}
+				}
+			}
+
+		}
+#ifdef _DEBUG
+		cerr << "robot " << iri << " current task : ";
+		curT->printTask();
+#endif // _DEBUG
+
+		while (!pq.empty()) {
+
+#ifdef _DEBUG
+			cerr << "robot " << iri << " best task : " << pq.top().second << " ";
+			pq.top().first->printTask();
+#endif // _DEBUG
+
+			int tempType = pq.top().first->sellWb->id * 100 + pq.top().first->item;
+			taskType.insert(tempType);
+			pq.pop();
+		}
+	}
+#ifdef _DEBUG
+	cerr << "can allocate " << taskType.size() << " different type task" << endl;
+#endif // _DEBUG
+
+
+	vector<vector<int>> timeMatrix(4, vector<int>(taskType.size()));
+	vector<Task*> riTasks(taskType.size());
+	int tti = 0;
+	for (int tempTaskType : taskType) {
+		int wi = tempTaskType / 100;
+		int item = tempTaskType % 10;
+		riTasks[tti] = workbenchs[wi].typeTask2Task[item][robots[ri].task].first;
+		for (int iri = 0; iri < 4; iri++) {
+			//cerr << "robot " << iri << " workbench " << wi << " - item - " << item << endl;
+			//timeMatrix[iri][tti] = (int)(50 * workbenchs[wi].typeTask2Task[item][robots[iri].task].second);
+			timeMatrix[iri][tti] = pipeLinePriority(robots[ri], wi, item);
+			//再加时间惩罚？
+			if (iri != ri) {
+				timeMatrix[iri][tti] += (int)(robots[iri].remain_t * 25);
+			}
+		}
+		tti++;
+	}
+	int taskTypeId = mpm.minimumTaskId(timeMatrix, ri);
+
+#ifdef _DEBUG
+	for (int iri = 0; iri < 4; iri++) {
+		if (mpm.robotMatchTaskId[iri] >= riTasks.size()) {
+			cerr << "robot " << iri << " should spare! ";
+			continue;
+		}
+		cerr << "robot " << iri << " should get task ";
+		riTasks[mpm.robotMatchTaskId[iri]]->printTask();
+	}
+#endif // _DEBUG
+
+	if (taskTypeId < riTasks.size()) {
+		return riTasks[taskTypeId];
+	}
+	abort();
+}
+
+int Controller::pipeLinePriority(Robot & r, int wi, int item)
+{
+	double assess_time = 50 * workbenchs[wi].typeTask2Task[item][r.task].second;
+	assess_time += item_prioirty[workbenchs[wi].type];
+	assess_time += 300 * (3 - workbenchs[wi].demand(item));
+	assess_time += 200 * itemsInPrepare[workbenchs[wi].type];
+	assess_time += 50 * (1 - workbenchs[wi].pdt_status);
+	//如果满了，则额外惩罚
+	return (int)assess_time;
 }
