@@ -40,6 +40,10 @@ public:
 
 	static std::vector<vector<int>> items_need;
 
+	bool nearEdge;
+	double edge_x;
+	double edge_y;
+
 public:
 	Workbench(int id, int type, double x, double y);
 	void scanWorkbench();

@@ -83,7 +83,7 @@ void Controller::initTask()
 		robots[i].task = start_t;
 		wbid++;
 	}
-	
+
 	//TODO 三级for就是搞砸了，现在直接4级for
 	int task_num = 0;
 	for (const auto & p : topos) {
@@ -122,12 +122,19 @@ void Controller::initTask()
 						}
 					}
 					if (optTask != nullptr) {
-						workbenchs[wi].typeTask2Task[item][t] = {optTask, minTime};
+						workbenchs[wi].typeTask2Task[item][t] = { optTask, minTime };
 					}
 				}
 			}
 		}
 	}
+	
+	if (workbenchIds[7].size() == 1) {
+		for (int ri = 0; ri < 4; ri++) {
+			robots[ri].dift_flag = true;
+		}
+	}
+
 #ifdef _DEBUG
 	cerr << "task num = " <<task_num << endl;
 #endif // _DEBUG
@@ -189,7 +196,8 @@ bool Controller::readFrame()
 		r.scanRobot();
 		//r.printRobot();
 	}
-	if (curFrame > 8000 ) {
+	//if (curFrame > 8500 || (mode == ChokeMode && curFrame > 8000)) {
+	if (curFrame > 8500 || (mode == ChokeMode && workbenchIds[7].size() != 1 && curFrame > 8000)) {
 		greed_flag = true;
 	}
 	readUntilOK();
@@ -207,6 +215,7 @@ void Controller::writeFrame()
 		//robots[robotId].target = &workbenchs[(curFrame / 1000 + robotId * 10) % workbenchs.size()];
 		robots[robotId].goToTarget(lineSpeed, angleSpeed);
 		robots[robotId].avoidEdge(lineSpeed, angleSpeed);
+		//robots[robotId].avoidEdgeDift(lineSpeed, angleSpeed);
 		
 		avoidCollision(robotId, lineSpeed, angleSpeed);
 		printf("forward %d %d\n", robotId, lineSpeed);
@@ -548,6 +557,7 @@ Task* Controller::allocateMatch(int ri)
 	//来都来了，顺手送了
 
 	//感觉只有图三要考虑是否先干附近能干的活再送走
+	//结果allSet设置真不行，4张图都是负优化
 	//if (robots[ri].task->sellWb->pdt_status == 1 && robots[ri].task->sellWb->allSet)
 	if (!greed_flag && robots[ri].task->sellWb->pdt_status == 1) {
 		int item = robots[ri].task->sellWb->type;
@@ -727,6 +737,9 @@ int Controller::matchPriority(Robot & r, int wi, int item)
 	}
 	double add_pri = item_prioirty[workbenchs[wi].type];
 	add_pri += 200 * (3 - workbenchs[wi].demand(item));
+	if (workbenchIds[7].size() == 1) {
+		add_pri += 100 * itemsInPrepare[workbenchs[wi].type];
+	}
 	//如果满了，则额外惩罚
 	//add_pri += item_prioirty[workbenchs[wi].type] * workbenchs[wi].pdt_status;
 	//除非有的选，不然别把工作台堵着了

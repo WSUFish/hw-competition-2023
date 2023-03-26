@@ -43,6 +43,8 @@ public:
 
 	double remain_t = 0;
 
+	bool dift_flag = false;
+
 public:
 	Robot();
 	Robot(int id, double x, double y);
@@ -59,6 +61,8 @@ public:
 
 	//TODO 能不能不减速，油门踩死
 	void avoidEdge(int &nv, double &nav);
+
+	void avoidEdgeDift(int &nv, double &nav);
 
 	bool arrive();
 	bool readyForUpdateTask();

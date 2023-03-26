@@ -198,7 +198,19 @@ void Robot::goToDir_PID(double tdir, int & nv, double & nav)
 
 void Robot::goToTarget(int & nv, double & nav)
 {
-	if (target != nullptr) {
+	if (target == nullptr) {
+		return;
+	}
+	if (dift_flag && target->nearEdge) {
+		double dis = distance(target->x, target->y);
+		if (dis > 4) {
+			goTo_greed(target->edge_x, target->edge_y, nv, nav);
+		}
+		else {
+			goTo_greed(target->x, target->y, nv, nav);
+		}
+	}
+	else {
 		goTo_greed(target->x, target->y, nv, nav);
 	}
 	//avoidEdge(nv, nav);
@@ -273,6 +285,10 @@ void Robot::goToDir(double tdir, int & nv, double & nav)
 
 void Robot::avoidEdge(int & nv, double & nav)
 {
+	if (dift_flag) {
+		avoidEdgeDift(nv, nav);
+		return;
+	}
 	// 如果携带货物往墙上撞，说明前方有工作站，是不是没必要避让？
 	double stop_frames = item == 0 ? 0.36 : 0.44;
 	double stop_distance = item == 0 ? 0.45 : 0.53;
@@ -280,6 +296,27 @@ void Robot::avoidEdge(int & nv, double & nav)
 	double exp_y = y + y_vel * stop_frames;
 	if (exp_x < stop_distance || exp_x > 50 - stop_distance || exp_y < stop_distance || exp_y > 50 - stop_distance) {
 		nv = 1;
+	}
+	//if (exp_x < stop_distance || exp_x > 50 - stop_distance) {
+	//	goToDir(dir > 0 ? 1.57 : -1.57, nv, nav);
+	//}
+	//else if (exp_y < stop_distance || exp_y > 50 - stop_distance) {
+	//	goToDir(abs(dir) > 1.57 ? 3.14 : 0, nv, nav);
+	//}
+}
+
+void Robot::avoidEdgeDift(int & nv, double & nav)
+{
+	// 如果携带货物往墙上撞，说明前方有工作站，是不是没必要避让？
+	double stop_frames = item == 0 ? 0.24 : 0.36;
+	double stop_distance = item == 0 ? 0.45 : 0.53;
+	double exp_x = x + x_vel * stop_frames;
+	double exp_y = y + y_vel * stop_frames;
+	if (exp_x < stop_distance || exp_x > 50 - stop_distance) {
+		goToDir(dir > 0 ? 1.57 : -1.57, nv, nav);
+	}
+	else if (exp_y < stop_distance || exp_y > 50 - stop_distance) {
+		goToDir(abs(dir) > 1.57 ? 3.14 : 0, nv, nav);
 	}
 }
 

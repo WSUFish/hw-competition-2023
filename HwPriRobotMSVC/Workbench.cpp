@@ -20,6 +20,18 @@ Workbench::Workbench(int id, int type, double x, double y):
 		readyForSell[i] = true;
 		sellDelegated[i] = false;
 	}
+
+	nearEdge = false;
+	edge_x = x;
+	edge_y = y;
+	if (x < 1.5 || x > 48.5) {
+		nearEdge = true;
+		edge_y = (y > 2 ? y - 1.5 : y + 1.5);
+	}
+	if (y < 1.5 || y > 48.5) {
+		nearEdge = true;
+		edge_x = (x > 2 ? x - 1.5 : x + 1.5);
+	}
 }
 
 void Workbench::scanWorkbench()
